@@ -18,6 +18,11 @@ DEBUG_MODE = True
 
 
 def logPrint(q):
+    """Print *q* to stdout, suppressing ``[DEBUG]`` messages when ``DEBUG_MODE`` is ``False``.
+
+    Args:
+        q (str): Message to print.
+    """
     if "[DEBUG]" in q and not DEBUG_MODE:
         return
     print(q)
@@ -33,6 +38,14 @@ if DRY_RUN:
 
 
 def gettingTagsID(name):
+    """Return the tag ID for *name* as a string, or ``None`` if the tag is not found.
+
+    Args:
+        name (str): Exact tag name to look up in the ``tags`` table.
+
+    Returns:
+        str | None: Tag ID string, or ``None`` on no match or lookup error.
+    """
     cursor.execute("SELECT id from tags WHERE name=?;", [name])
     result = cursor.fetchone()
     try:
@@ -45,6 +58,14 @@ def gettingTagsID(name):
 
 
 def get_SceneID_fromTags(id):
+    """Return a comma-separated string of scene IDs that carry the given tag.
+
+    Args:
+        id (str): Tag ID to look up in ``scenes_tags``.
+
+    Returns:
+        str: Comma-separated scene IDs (e.g. ``"1,2,3"``), or ``""`` if none.
+    """
     cursor.execute("SELECT scene_id from scenes_tags WHERE tag_id=?;", [id])
     record = cursor.fetchall()
     logPrint("There is {} scene(s) with the tag_id {}".format(len(record), id))
@@ -56,6 +77,19 @@ def get_SceneID_fromTags(id):
 
 
 def get_Perf_fromSceneID(id_scene):
+    """Return a space-trimmed string of performer names for a scene.
+
+    Returns ``""`` if the scene has more than 3 performers. When
+    ``FEMALE_ONLY`` is ``True``, only performers whose gender is ``"FEMALE"``
+    are included. Orphaned performer IDs (no matching row in ``performers``)
+    are silently skipped.
+
+    Args:
+        id_scene (str): Scene ID to query.
+
+    Returns:
+        str: Space-separated performer names, or ``""`` if none qualify.
+    """
     perf_list = ""
     cursor.execute(
         "SELECT performer_id from performers_scenes WHERE scene_id=?;", [id_scene]
@@ -87,6 +121,14 @@ def get_Perf_fromSceneID(id_scene):
 
 
 def get_Studio_fromID(id):
+    """Return the studio name for *id*, or ``""`` if the studio is not found.
+
+    Args:
+        id (str | int): Studio ID to look up in the ``studios`` table.
+
+    Returns:
+        str: Studio name, or ``""`` on no match.
+    """
     cursor.execute("SELECT name from studios WHERE id=?;", [id])
     record = cursor.fetchall()
     if not record:
@@ -96,11 +138,31 @@ def get_Studio_fromID(id):
 
 
 def makeFilename(scene_info, query):
-    # Query example:
-    # Available: $date $performer $title $studio $height
-    # $title                              == SSNI-000.mp4
-    # $date $title                        == 2017-04-27 Oni Chichi.mp4
-    # $date $performer - $title [$studio] == 2016-12-29 Eva Lovia - Her Fantasy Ball [Sneaky Sex].mp4
+    """Build a filename stem by substituting template variables with scene metadata.
+
+    Available variables: ``$date``, ``$performer``, ``$title``, ``$studio``,
+    ``$height``. Variables whose values are ``None`` or ``""`` are removed
+    along with surrounding separators. Post-processing collapses duplicate
+    spaces, strips leading/trailing dashes, removes empty bracket pairs, and
+    trims whitespace.
+
+    Args:
+        scene_info (dict): Keys ``"date"``, ``"performer"``, ``"title"``,
+            ``"studio"``, ``"height"`` mapping to string values or ``None``.
+        query (str): Template string, e.g.
+            ``"$date $performer - $title [$studio]"``.
+
+    Returns:
+        str: Rendered filename stem with no extension and no directory path.
+
+    Example::
+
+        makeFilename({"title": "Her Fantasy Ball", "date": "2016-12-29",
+                      "performer": "Eva Lovia", "studio": "Sneaky Sex",
+                      "height": "1080p"},
+                     "$date $performer - $title [$studio]")
+        # → "2016-12-29 Eva Lovia - Her Fantasy Ball [Sneaky Sex]"
+    """
     new_filename = str(query)
     if "$date" in new_filename:
         if scene_info.get("date") == "" or scene_info.get("date") is None:
@@ -140,6 +202,30 @@ def makeFilename(scene_info, query):
 
 
 def edit_db(query_filename, optional_query=""):
+    """Rename scene files on disk according to a filename template.
+
+    Fetches scenes from the Stash SQLite database (optionally filtered by
+    *optional_query*), generates a new filename for each scene using
+    :func:`makeFilename`, and either renames the file on disk (live mode) or
+    records the proposed rename (dry-run mode).
+
+    Log files appended during the run (all relative to the working directory):
+
+    * ``renamer_duplicate.txt`` — scenes skipped due to a filename collision
+      (format: ``scene_id|current_path|new_filename``).
+    * ``rename_log.txt`` — successful renames when ``USING_LOG`` is ``True``
+      (format: ``scene_id|old_path|new_path``).
+    * ``renamer_fail.txt`` — OS-level rename failures
+      (format: ``old_path -> new_path``).
+    * ``renamer_dryrun.txt`` — proposed renames when ``DRY_RUN`` is ``True``
+      (format: ``old_path -> new_path``).
+
+    Args:
+        query_filename (str): Filename template passed to :func:`makeFilename`.
+        optional_query (str): Optional SQL ``WHERE`` clause appended to the
+            base scene query, e.g. ``"WHERE id in (1,2,3)"``. Defaults to
+            ``""`` (all scenes).
+    """
     scene_query = """
     SELECT s.id,f.basename,d.path,s.title,s.date,s.studio_id,vf.height
     FROM scenes AS s
