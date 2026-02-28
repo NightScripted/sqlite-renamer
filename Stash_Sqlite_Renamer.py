@@ -156,161 +156,157 @@ def edit_db(query_filename, optional_query=""):
     logPrint("Scenes numbers: {}".format(len(record)))
     progressbar_Index = 0
     progress = progressbar.ProgressBar(redirect_stdout=True).start(len(record))
-    dup_log = open("renamer_duplicate.txt", "a", encoding="utf-8")
-    rename_log = open("rename_log.txt", "a", encoding="utf-8")
-    fail_log = open("renamer_fail.txt", "a", encoding="utf-8")
-    dryrun_log = open("renamer_dryrun.txt", "a", encoding="utf-8")
-    for row in record:
-        progress.update(progressbar_Index + 1)
-        progressbar_Index += 1
-        scene_ID = str(row[0])
-        # Fixing letter (X:Folder -> X:\Folder)
-        current_filename = str(row[1])
-        current_directory = str(row[2])
-        current_path = os.path.join(current_directory, current_filename)
-        file_extension = os.path.splitext(current_filename)[1]
-        scene_title = str(row[3])
-        scene_date = str(row[4])
-        scene_Studio_id = str(row[5])
-        file_height = str(row[6])
-        # By default, title contains extensions.
-        scene_title = re.sub(re.escape(file_extension) + "$", "", scene_title)
+    with open("renamer_duplicate.txt", "a", encoding="utf-8") as dup_log, \
+         open("rename_log.txt", "a", encoding="utf-8") as rename_log, \
+         open("renamer_fail.txt", "a", encoding="utf-8") as fail_log, \
+         open("renamer_dryrun.txt", "a", encoding="utf-8") as dryrun_log:
+        for row in record:
+            progress.update(progressbar_Index + 1)
+            progressbar_Index += 1
+            scene_ID = str(row[0])
+            # Fixing letter (X:Folder -> X:\Folder)
+            current_filename = str(row[1])
+            current_directory = str(row[2])
+            current_path = os.path.join(current_directory, current_filename)
+            file_extension = os.path.splitext(current_filename)[1]
+            scene_title = str(row[3])
+            scene_date = str(row[4])
+            scene_Studio_id = str(row[5])
+            file_height = str(row[6])
+            # By default, title contains extensions.
+            scene_title = re.sub(re.escape(file_extension) + "$", "", scene_title)
 
-        performer_name = get_Perf_fromSceneID(scene_ID)
+            performer_name = get_Perf_fromSceneID(scene_ID)
 
-        studio_name = ""
-        if scene_Studio_id and scene_Studio_id != "None":
-            studio_name = get_Studio_fromID(scene_Studio_id)
+            studio_name = ""
+            if scene_Studio_id and scene_Studio_id != "None":
+                studio_name = get_Studio_fromID(scene_Studio_id)
 
-        if file_height == "4320":
-            file_height = "8k"
-        else:
-            if file_height == "2160":
-                file_height = "4k"
+            if file_height == "4320":
+                file_height = "8k"
             else:
-                file_height = "{}p".format(file_height)
-
-        scene_info = {
-            "title": scene_title,
-            "date": scene_date,
-            "performer": performer_name,
-            "studio": studio_name,
-            "height": file_height,
-        }
-        logPrint("[DEBUG] Scene information: {}".format(scene_info))
-        # Create the new filename
-        new_filename = makeFilename(scene_info, query_filename) + file_extension
-        if "None" in new_filename:
-            logPrint("[Error] Information missing for new filename, ID: {}".format(scene_ID))
-            continue
-
-        # Remove illegal character for Windows ('#' and ',' is not illegal you can remove it)
-        new_filename = re.sub('[\\/:"*?<>|#,]+', "", new_filename)
-
-        # Replace the old filename by the new in the filepath
-        new_path = current_path.replace(current_filename, new_filename)
-
-        if len(new_path) > 240:
-            logPrint("[Warn] The Path is too long ({})".format(new_path))
-            # We only use the date and title to get a shorter file (eg: 2017-04-27 - Oni Chichi.mp4)
-            if scene_info.get("date"):
-                reducePath = (
-                    len(
-                        current_directory
-                        + scene_info["title"]
-                        + scene_info["date"]
-                        + file_extension
-                    )
-                    + 3
-                )
-            else:
-                reducePath = (
-                    len(current_directory + scene_info["title"] + file_extension) + 3
-                )
-            if reducePath < 240:
-                if scene_info.get("date"):
-                    new_filename = (
-                        makeFilename(scene_info, "$date - $title") + file_extension
-                    )
+                if file_height == "2160":
+                    file_height = "4k"
                 else:
-                    new_filename = makeFilename(scene_info, "$title") + file_extension
-                # new_path = re.sub('{}$'.format(current_filename), new_filename, current_path)
-                new_path = current_path.replace(current_filename, new_filename)
-                logPrint("Reduced filename to: {}".format(new_filename))
-            else:
-                logPrint(
-                    "[Error] Can't manage to reduce the path, ID: {}".format(scene_ID)
-                )
+                    file_height = "{}p".format(file_height)
+
+            scene_info = {
+                "title": scene_title,
+                "date": scene_date,
+                "performer": performer_name,
+                "studio": studio_name,
+                "height": file_height,
+            }
+            logPrint("[DEBUG] Scene information: {}".format(scene_info))
+            # Create the new filename
+            new_filename = makeFilename(scene_info, query_filename) + file_extension
+            if "None" in new_filename:
+                logPrint("[Error] Information missing for new filename, ID: {}".format(scene_ID))
                 continue
 
-        # Looking for duplicate filename
-        cursor.execute(
-            "SELECT sf.scene_id FROM scenes_files AS sf LEFT JOIN files AS f ON sf.file_id = f.id WHERE f.basename = ? AND NOT sf.scene_id=?;",
-            [new_filename, scene_ID],
-        )
-        dupl_check = cursor.fetchall()
-        if len(dupl_check) > 0:
-            for dupl_row in dupl_check:
-                logPrint("[Error] Same filename: [{}]".format(dupl_row[0]))
-                print(
-                    "{}|{}|{}\n".format(scene_ID, current_path, new_filename),
-                    file=dup_log,
-                )
-            logPrint("\n")
-            continue
+            # Remove illegal character for Windows ('#' and ',' is not illegal you can remove it)
+            new_filename = re.sub('[\\/:"*?<>|#,]+', "", new_filename)
 
-        logPrint("[DEBUG] Filename: {} -> {}".format(current_filename, new_filename))
-        logPrint("[DEBUG] Path: {} -> {}".format(current_path, new_path))
-        if new_path == current_path:
-            logPrint("[DEBUG] File already good.\n")
-            continue
-        else:
-            #
-            # THIS PART WILL EDIT YOUR DATABASE, FILES (be careful and know what you do)
-            #
-            # Windows Rename
-            if not DRY_RUN:
-                if os.path.isfile(current_path):
-                    if os.path.isfile(new_path):
-                        logPrint("[Error] Destination file already exists on disk: {}".format(new_path))
-                        print(
-                            "{}|{}|{}\n".format(scene_ID, current_path, new_filename),
-                            file=dup_log,
+            # Replace the old filename by the new in the filepath
+            new_path = current_path.replace(current_filename, new_filename)
+
+            if len(new_path) > 240:
+                logPrint("[Warn] The Path is too long ({})".format(new_path))
+                # We only use the date and title to get a shorter file (eg: 2017-04-27 - Oni Chichi.mp4)
+                if scene_info.get("date"):
+                    reducePath = (
+                        len(
+                            current_directory
+                            + scene_info["title"]
+                            + scene_info["date"]
+                            + file_extension
                         )
-                        continue
-                    os.rename(current_path, new_path)
-                    if os.path.isfile(new_path):
-                        logPrint("[OS] File Renamed! ({})".format(current_filename))
-                        if USING_LOG:
+                        + 3
+                    )
+                else:
+                    reducePath = (
+                        len(current_directory + scene_info["title"] + file_extension) + 3
+                    )
+                if reducePath < 240:
+                    if scene_info.get("date"):
+                        new_filename = (
+                            makeFilename(scene_info, "$date - $title") + file_extension
+                        )
+                    else:
+                        new_filename = makeFilename(scene_info, "$title") + file_extension
+                    # new_path = re.sub('{}$'.format(current_filename), new_filename, current_path)
+                    new_path = current_path.replace(current_filename, new_filename)
+                    logPrint("Reduced filename to: {}".format(new_filename))
+                else:
+                    logPrint(
+                        "[Error] Can't manage to reduce the path, ID: {}".format(scene_ID)
+                    )
+                    continue
+
+            # Looking for duplicate filename
+            cursor.execute(
+                "SELECT sf.scene_id FROM scenes_files AS sf LEFT JOIN files AS f ON sf.file_id = f.id WHERE f.basename = ? AND NOT sf.scene_id=?;",
+                [new_filename, scene_ID],
+            )
+            dupl_check = cursor.fetchall()
+            if len(dupl_check) > 0:
+                for dupl_row in dupl_check:
+                    logPrint("[Error] Same filename: [{}]".format(dupl_row[0]))
+                    print(
+                        "{}|{}|{}\n".format(scene_ID, current_path, new_filename),
+                        file=dup_log,
+                    )
+                logPrint("\n")
+                continue
+
+            logPrint("[DEBUG] Filename: {} -> {}".format(current_filename, new_filename))
+            logPrint("[DEBUG] Path: {} -> {}".format(current_path, new_path))
+            if new_path == current_path:
+                logPrint("[DEBUG] File already good.\n")
+                continue
+            else:
+                #
+                # THIS PART WILL EDIT YOUR DATABASE, FILES (be careful and know what you do)
+                #
+                # Windows Rename
+                if not DRY_RUN:
+                    if os.path.isfile(current_path):
+                        if os.path.isfile(new_path):
+                            logPrint("[Error] Destination file already exists on disk: {}".format(new_path))
                             print(
-                                "{}|{}|{}\n".format(scene_ID, current_path, new_path),
-                                file=rename_log,
+                                "{}|{}|{}\n".format(scene_ID, current_path, new_filename),
+                                file=dup_log,
+                            )
+                            continue
+                        os.rename(current_path, new_path)
+                        if os.path.isfile(new_path):
+                            logPrint("[OS] File Renamed! ({})".format(current_filename))
+                            if USING_LOG:
+                                print(
+                                    "{}|{}|{}\n".format(scene_ID, current_path, new_path),
+                                    file=rename_log,
+                                )
+                        else:
+                            logPrint(
+                                "[OS] File failed to rename ? ({})".format(current_filename)
+                            )
+                            print(
+                                "{} -> {}\n".format(current_path, new_path),
+                                file=fail_log,
                             )
                     else:
                         logPrint(
-                            "[OS] File failed to rename ? ({})".format(current_filename)
-                        )
-                        print(
-                            "{} -> {}\n".format(current_path, new_path),
-                            file=fail_log,
+                            "[OS] File doesn't exist in your Disk/Drive ({})".format(current_path)
                         )
                 else:
-                    logPrint(
-                        "[OS] File doesn't exist in your Disk/Drive ({})".format(current_path)
+                    logPrint("[DRY_RUN][OS] File should be renamed")
+                    print(
+                        "{} -> {}\n".format(current_path, new_path),
+                        file=dryrun_log,
                     )
-            else:
-                logPrint("[DRY_RUN][OS] File should be renamed")
-                print(
-                    "{} -> {}\n".format(current_path, new_path),
-                    file=dryrun_log,
-                )
-            logPrint("\n")
-        # break
-    progress.finish()
-    dup_log.close()
-    rename_log.close()
-    fail_log.close()
-    dryrun_log.close()
+                logPrint("\n")
+            # break
+        progress.finish()
     return
 
 
