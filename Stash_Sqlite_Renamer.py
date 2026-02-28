@@ -26,7 +26,7 @@ def logPrint(q):
 logPrint("Database Path: {}".format(DB_PATH))
 if DRY_RUN == True:
     try:
-        os.remove("rename_dryrun.txt")
+        os.remove("renamer_dryrun.txt")
     except FileNotFoundError:
         pass
     logPrint("[DRY_RUN] DRY-RUN Enable")
@@ -92,7 +92,7 @@ def get_Studio_fromID(id):
 
 
 def makeFilename(scene_info, query):
-    # Query exemple:
+    # Query example:
     # Available: $date $performer $title $studio $height
     # $title                              == SSNI-000.mp4
     # $date $title                        == 2017-04-27 Oni Chichi.mp4
@@ -228,7 +228,7 @@ def edit_db(query_filename, optional_query=""):
                     new_filename = makeFilename(scene_info, "$title") + file_extension
                 # new_path = re.sub('{}$'.format(current_filename), new_filename, current_path)
                 new_path = current_path.replace(current_filename, new_filename)
-                logPrint("Reduced filename to: {}", new_filename)
+                logPrint("Reduced filename to: {}".format(new_filename))
             else:
                 logPrint(
                     "[Error] Can't manage to reduce the path, ID: {}".format(scene_ID)
@@ -244,7 +244,7 @@ def edit_db(query_filename, optional_query=""):
         if len(dupl_check) > 0:
             for dupl_row in dupl_check:
                 logPrint("[Error] Same filename: [{}]".format(dupl_row[0]))
-                logPrint(
+                print(
                     "[{}] - {}\n".format(dupl_row[0], new_filename),
                     file=open("renamer_duplicate.txt", "a", encoding="utf-8"),
                 )
@@ -281,7 +281,7 @@ def edit_db(query_filename, optional_query=""):
                         )
                 else:
                     logPrint(
-                        "[OS] File don't exist in your Disk/Drive ({})".format(current_path)
+                        "[OS] File doesn't exist in your Disk/Drive ({})".format(current_path)
                     )
             else:
                 logPrint("[DRY_RUN][OS] File should be renamed")

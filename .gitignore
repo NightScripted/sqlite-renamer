@@ -16,6 +16,12 @@ renamer_dryrun.txt
 renamer_duplicate.txt
 renamer_fail.txt
 
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
 # IDE
 .idea/
 .vscode/

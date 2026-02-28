@@ -11,7 +11,7 @@ Uses metadata from your [Stash](https://github.com/stashapp/stash) SQLite databa
 
 ## Requirements
 - Python 3.9+
-- `progressbar2` module (`pip install -r requirements.txt`)
+- `progressbar2` module (`pip install -r requirements.txt`) — installs as the `progressbar` module
 - A [Stash](https://github.com/stashapp/stash) database (`.sqlite` file)
 
 ## Setup
@@ -41,11 +41,13 @@ Available variables: `$date` `$performer` `$title` `$studio` `$height`
 
 Notes:
 - Illegal Windows filename characters are stripped automatically.
-- If the full path exceeds 240 characters, the script falls back to `$date - $title`.
+- If the full path exceeds 240 characters, the script falls back to `$date - $title` (or `$title` alone if no date is available).
 - Heights of 2160 and 4320 are shown as `4k` and `8k`; others as `<height>p` (e.g. `1080p`).
 - If a scene has more than 3 performers, `$performer` is omitted.
 
 ## Change Scenes by Tag
+
+> **Note:** Tag names below are examples — replace them with your actual tag names from Stash. The script's personal configuration section uses a `!` prefix by convention (e.g. `!1. JAV`).
 
 ```py
 tags_dict = {
