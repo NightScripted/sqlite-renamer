@@ -34,6 +34,8 @@ if DRY_RUN:
         os.remove("renamer_dryrun.txt")
     except FileNotFoundError:
         pass
+    except OSError as e:
+        logPrint("[Warn] Could not remove renamer_dryrun.txt: {}".format(e))
     logPrint("[DRY_RUN] DRY-RUN Enabled")
 
 
@@ -262,10 +264,10 @@ def edit_db(query_filename, optional_query=""):
             # By default, title contains extensions.
             scene_title = re.sub(re.escape(file_extension) + "$", "", scene_title)
 
-            performer_name = get_Perf_fromSceneID(scene_ID)
+            performer_name = get_Perf_fromSceneID(scene_ID) if "$performer" in query_filename else ""
 
             studio_name = ""
-            if scene_Studio_id:
+            if "$studio" in query_filename and scene_Studio_id:
                 studio_name = get_Studio_fromID(scene_Studio_id)
 
             if file_height == "4320":
@@ -285,13 +287,14 @@ def edit_db(query_filename, optional_query=""):
             }
             logPrint("[DEBUG] Scene information: {}".format(scene_info))
             # Create the new filename
-            new_filename = makeFilename(scene_info, query_filename) + file_extension
-            if not os.path.splitext(new_filename)[0]:
+            filename_stem = makeFilename(scene_info, query_filename)
+            if not filename_stem or not filename_stem.strip(".") or not any(c.isalnum() for c in filename_stem):
                 logPrint("[Error] Information missing for new filename, ID: {}".format(scene_ID))
                 continue
+            new_filename = filename_stem + file_extension
 
             # Remove illegal character for Windows ('#' and ',' is not illegal you can remove it)
-            new_filename = re.sub('[\\/:"*?<>|#,]+', "", new_filename)
+            new_filename = re.sub(r'[\\/:"*?<>|#,]+', "", new_filename)
 
             # Replace the old filename by the new in the filepath
             new_path = os.path.join(os.path.dirname(current_path), new_filename)
@@ -320,7 +323,11 @@ def edit_db(query_filename, optional_query=""):
                         )
                     else:
                         new_filename = makeFilename(scene_info, "$title") + file_extension
-                    # new_path = re.sub('{}$'.format(current_filename), new_filename, current_path)
+                    new_filename = re.sub(r'[\\/:"*?<>|#,]+', "", new_filename)
+                    reduced_stem = os.path.splitext(new_filename)[0]
+                    if not reduced_stem or not reduced_stem.strip(".") or not any(c.isalnum() for c in reduced_stem):
+                        logPrint("[Error] Information missing for new filename, ID: {}".format(scene_ID))
+                        continue
                     new_path = os.path.join(os.path.dirname(current_path), new_filename)
                     logPrint("Reduced filename to: {}".format(new_filename))
                 else:

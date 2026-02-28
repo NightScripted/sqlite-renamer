@@ -253,7 +253,8 @@ class TestEditDb(unittest.TestCase):
         ]
         _mod.edit_db("$title")
         self.assertTrue(os.path.exists("renamer_dryrun.txt"))
-        content = open("renamer_dryrun.txt", encoding="utf-8").read()
+        with open("renamer_dryrun.txt", encoding="utf-8") as f:
+            content = f.read()
         self.assertIn("old.mp4", content)
         self.assertIn("My Title.mp4", content)
 
@@ -267,18 +268,19 @@ class TestEditDb(unittest.TestCase):
         _mod.edit_db("$title")
         # dryrun_log should be empty (nothing to rename)
         if os.path.exists("renamer_dryrun.txt"):
-            content = open("renamer_dryrun.txt", encoding="utf-8").read()
+            with open("renamer_dryrun.txt", encoding="utf-8") as f:
+                content = f.read()
             self.assertEqual(content.strip(), "")
 
     def test_duplicate_detected_writes_duplicate_log(self):
         _cursor.fetchall.side_effect = [
             [_scene_row()],          # main scene query
-            [],                      # performers
             [("99",)],               # duplicate check → collision found
         ]
         _mod.edit_db("$title")
         self.assertTrue(os.path.exists("renamer_duplicate.txt"))
-        content = open("renamer_duplicate.txt", encoding="utf-8").read()
+        with open("renamer_duplicate.txt", encoding="utf-8") as f:
+            content = f.read()
         self.assertIn("old.mp4", content)
 
     def test_live_rename_calls_os_rename(self):
@@ -307,19 +309,20 @@ class TestEditDb(unittest.TestCase):
              patch("os.rename", side_effect=OSError("Permission denied")):
             _mod.edit_db("$title")   # must not raise
         self.assertTrue(os.path.exists("renamer_fail.txt"))
-        content = open("renamer_fail.txt", encoding="utf-8").read()
+        with open("renamer_fail.txt", encoding="utf-8") as f:
+            content = f.read()
         self.assertIn("old.mp4", content)
 
-    def test_all_fields_empty_does_not_crash(self):
-        # All metadata None → makeFilename returns "" → new_filename is ".mp4".
-        # os.path.splitext(".mp4")[0] == ".mp4" (non-empty), so the stem check
-        # does not skip it; the scene is processed normally in dry-run mode.
+    def test_all_fields_empty_skips_scene(self):
+        # All metadata None → makeFilename returns "" → stem validation rejects it.
+        # No performer queries or duplicate-check DB calls should occur.
         _cursor.fetchall.side_effect = [
             [_scene_row(title=None, date=None, height=None)],
-            [],   # performers
-            [],   # duplicate check
         ]
-        _mod.edit_db("$title")   # must not raise
+        _mod.edit_db("$title")
+        # Only one fetchall call: the main scene query.
+        # The performer and duplicate-check queries must NOT have run.
+        self.assertEqual(_cursor.fetchall.call_count, 1)
 
 
 if __name__ == "__main__":
