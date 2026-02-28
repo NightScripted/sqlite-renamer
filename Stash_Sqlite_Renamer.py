@@ -245,7 +245,7 @@ def edit_db(query_filename, optional_query=""):
             for dupl_row in dupl_check:
                 logPrint("[Error] Same filename: [{}]".format(dupl_row[0]))
                 print(
-                    "[{}] - {}\n".format(dupl_row[0], new_filename),
+                    "{}|{}|{}\n".format(scene_ID, current_path, new_filename),
                     file=open("renamer_duplicate.txt", "a", encoding="utf-8"),
                 )
             logPrint("\n")
@@ -263,6 +263,13 @@ def edit_db(query_filename, optional_query=""):
             # Windows Rename
             if DRY_RUN == False:
                 if os.path.isfile(current_path) == True:
+                    if os.path.isfile(new_path) == True:
+                        logPrint("[Error] Destination file already exists on disk: {}".format(new_path))
+                        print(
+                            "{}|{}|{}\n".format(scene_ID, current_path, new_filename),
+                            file=open("renamer_duplicate.txt", "a", encoding="utf-8"),
+                        )
+                        continue
                     os.rename(current_path, new_path)
                     if os.path.isfile(new_path) == True:
                         logPrint("[OS] File Renamed! ({})".format(current_filename))
