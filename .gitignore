@@ -1,0 +1,25 @@
+# Stash database
+stash-go.sqlite
+*.sqlite
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Logs and output files
+rename_log.txt
+renamer_dryrun.txt
+renamer_duplicate.txt
+renamer_fail.txt
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
