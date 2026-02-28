@@ -7,7 +7,8 @@ Uses metadata from your [Stash](https://github.com/stashapp/stash) SQLite databa
 ## :exclamation: Important :exclamation:
 **This will make permanent changes to your files on disk.**
 The SQLite database is read-only — the script never writes to it.
-###### (Enable `USING_LOG` to write `rename_log.txt` as a rollback reference.)
+
+> Enable `USING_LOG` to write `rename_log.txt` as a rollback reference.
 
 
 ## Requirements

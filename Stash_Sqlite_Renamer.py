@@ -169,17 +169,17 @@ def edit_db(query_filename, optional_query=""):
             current_directory = str(row[2])
             current_path = os.path.join(current_directory, current_filename)
             file_extension = os.path.splitext(current_filename)[1]
-            scene_title = str(row[3])
-            scene_date = str(row[4])
-            scene_Studio_id = str(row[5])
-            file_height = str(row[6])
+            scene_title = row[3] if row[3] is not None else ""
+            scene_date = row[4] if row[4] is not None else ""
+            scene_Studio_id = str(row[5]) if row[5] is not None else ""
+            file_height = str(row[6]) if row[6] is not None else ""
             # By default, title contains extensions.
             scene_title = re.sub(re.escape(file_extension) + "$", "", scene_title)
 
             performer_name = get_Perf_fromSceneID(scene_ID)
 
             studio_name = ""
-            if scene_Studio_id and scene_Studio_id != "None":
+            if scene_Studio_id:
                 studio_name = get_Studio_fromID(scene_Studio_id)
 
             if file_height == "4320":
@@ -187,7 +187,7 @@ def edit_db(query_filename, optional_query=""):
             else:
                 if file_height == "2160":
                     file_height = "4k"
-                else:
+                elif file_height:
                     file_height = "{}p".format(file_height)
 
             scene_info = {
@@ -200,7 +200,7 @@ def edit_db(query_filename, optional_query=""):
             logPrint("[DEBUG] Scene information: {}".format(scene_info))
             # Create the new filename
             new_filename = makeFilename(scene_info, query_filename) + file_extension
-            if "None" in new_filename:
+            if not os.path.splitext(new_filename)[0]:
                 logPrint("[Error] Information missing for new filename, ID: {}".format(scene_ID))
                 continue
 
@@ -208,7 +208,7 @@ def edit_db(query_filename, optional_query=""):
             new_filename = re.sub('[\\/:"*?<>|#,]+', "", new_filename)
 
             # Replace the old filename by the new in the filepath
-            new_path = current_path.replace(current_filename, new_filename)
+            new_path = os.path.join(os.path.dirname(current_path), new_filename)
 
             if len(new_path) > 240:
                 logPrint("[Warn] The Path is too long ({})".format(new_path))
@@ -235,7 +235,7 @@ def edit_db(query_filename, optional_query=""):
                     else:
                         new_filename = makeFilename(scene_info, "$title") + file_extension
                     # new_path = re.sub('{}$'.format(current_filename), new_filename, current_path)
-                    new_path = current_path.replace(current_filename, new_filename)
+                    new_path = os.path.join(os.path.dirname(current_path), new_filename)
                     logPrint("Reduced filename to: {}".format(new_filename))
                 else:
                     logPrint(
@@ -278,22 +278,30 @@ def edit_db(query_filename, optional_query=""):
                                 file=dup_log,
                             )
                             continue
-                        os.rename(current_path, new_path)
-                        if os.path.isfile(new_path):
-                            logPrint("[OS] File Renamed! ({})".format(current_filename))
-                            if USING_LOG:
-                                print(
-                                    "{}|{}|{}\n".format(scene_ID, current_path, new_path),
-                                    file=rename_log,
+                        try:
+                            os.rename(current_path, new_path)
+                            if os.path.isfile(new_path):
+                                logPrint("[OS] File Renamed! ({})".format(current_filename))
+                                if USING_LOG:
+                                    print(
+                                        "{}|{}|{}\n".format(scene_ID, current_path, new_path),
+                                        file=rename_log,
+                                    )
+                            else:
+                                logPrint(
+                                    "[OS] File failed to rename ? ({})".format(current_filename)
                                 )
-                        else:
-                            logPrint(
-                                "[OS] File failed to rename ? ({})".format(current_filename)
-                            )
+                                print(
+                                    "{} -> {}\n".format(current_path, new_path),
+                                    file=fail_log,
+                                )
+                        except OSError as e:
+                            logPrint("[OS] Rename failed ({} -> {}): {}".format(current_path, new_path, e))
                             print(
                                 "{} -> {}\n".format(current_path, new_path),
                                 file=fail_log,
                             )
+                            continue
                     else:
                         logPrint(
                             "[OS] File doesn't exist in your Disk/Drive ({})".format(current_path)
