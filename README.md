@@ -5,8 +5,10 @@ https://discourse.stashapp.cc/t/sqlite-renamer-for-stash/1476
 Uses metadata from your [Stash](https://github.com/stashapp/stash) SQLite database to rename your video files on disk.
 
 ## :exclamation: Important :exclamation:
-**This will make permanent changes to your database and files!**
-###### (Enable `USING_LOG` to write a log file you can use to revert changes.)
+**This will make permanent changes to your files on disk.**
+The SQLite database is read-only — the script never writes to it.
+
+> Enable `USING_LOG` to write `rename_log.txt` as a rollback reference.
 
 
 ## Requirements
@@ -16,9 +18,9 @@ Uses metadata from your [Stash](https://github.com/stashapp/stash) SQLite databa
 
 ## Setup
 
-1. Copy your Stash database (use "Backup" in Stash Settings).
+1. Back up your video files before a live run. Enable `USING_LOG` to write `rename_log.txt` as a rollback reference.
 2. Set `DB_PATH` ([Line 9](Stash_Sqlite_Renamer.py#L9)) to your `.sqlite` file path.
-3. Edit the personal configuration section ([Line 309–333](Stash_Sqlite_Renamer.py#L309)) with your tags and filename templates.
+3. Edit the personal configuration section ([Line 326–352](Stash_Sqlite_Renamer.py#L326)) with your tags and filename templates.
 
 ## First Run (Dry Run)
 
@@ -26,7 +28,7 @@ Set `DRY_RUN = True` ([Line 13](Stash_Sqlite_Renamer.py#L13)) — nothing will b
 
 This creates `renamer_dryrun.txt` showing how each file would be renamed.
 
-You can uncomment the `break` ([Line 293](Stash_Sqlite_Renamer.py#L293)) to stop after the first file.
+You can uncomment the `break` ([Line 308](Stash_Sqlite_Renamer.py#L308)) to stop after the first file.
 
 ## Filename Templates
 
@@ -40,7 +42,7 @@ Available variables: `$date` `$performer` `$title` `$studio` `$height`
 | `$date $performer - $title [$studio]` | `2016-12-29 Eva Lovia - Her Fantasy Ball [Sneaky Sex].mp4` |
 
 Notes:
-- Illegal Windows filename characters are stripped automatically.
+- Illegal Windows filename characters are stripped automatically. `#` and `,` are also stripped even though they are legal on Windows — edit the character-stripping regex in the script to preserve them.
 - If the full path exceeds 240 characters, the script falls back to `$date - $title` (or `$title` alone if no date is available).
 - Heights of 2160 and 4320 are shown as `4k` and `8k`; others as `<height>p` (e.g. `1080p`).
 - If a scene has more than 3 performers, `$performer` is omitted.

@@ -5,51 +5,29 @@ makeFilename() has no DB dependency, so it is imported via importlib after
 patching the module-level side effects (DB connection, input()).
 """
 import importlib.util
+import pathlib
 import sys
-import types
 import unittest
 from unittest.mock import MagicMock, patch
 
 
 def load_make_filename():
-    """Load only the makeFilename function without executing the script body."""
-    import re
+    """Load the real makeFilename from Stash_Sqlite_Renamer.py."""
+    script_path = pathlib.Path(__file__).parent.parent / "Stash_Sqlite_Renamer.py"
 
-    def makeFilename(scene_info, query):
-        new_filename = str(query)
-        if "$date" in new_filename:
-            if scene_info.get("date") == "" or scene_info.get("date") is None:
-                new_filename = re.sub(r"\$date\s*", "", new_filename)
-            else:
-                new_filename = new_filename.replace("$date", scene_info["date"])
-        if "$performer" in new_filename:
-            if scene_info.get("performer") == "" or scene_info.get("performer") is None:
-                new_filename = re.sub(r"\$performer\s*", "", new_filename)
-            else:
-                new_filename = new_filename.replace("$performer", scene_info["performer"])
-        if "$title" in new_filename:
-            if scene_info.get("title") == "" or scene_info.get("title") is None:
-                new_filename = re.sub(r"\$title\s*", "", new_filename)
-            else:
-                new_filename = new_filename.replace("$title", scene_info["title"])
-        if "$studio" in new_filename:
-            if scene_info.get("studio") == "" or scene_info.get("studio") is None:
-                new_filename = re.sub(r"\$studio\s*", "", new_filename)
-            else:
-                new_filename = new_filename.replace("$studio", scene_info["studio"])
-        if "$height" in new_filename:
-            if scene_info.get("height") == "" or scene_info.get("height") is None:
-                new_filename = re.sub(r"\$height\s*", "", new_filename)
-            else:
-                new_filename = new_filename.replace("$height", scene_info["height"])
-        new_filename = re.sub(r"^\s*-\s*", "", new_filename)
-        new_filename = re.sub(r"\s*-\s*$", "", new_filename)
-        new_filename = re.sub(r"\[\W*]", "", new_filename)
-        new_filename = re.sub(r"\s{2,}", " ", new_filename)
-        new_filename = new_filename.strip()
-        return new_filename
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.cursor.return_value = mock_cursor
+    mock_cursor.fetchall.return_value = []
 
-    return makeFilename
+    with patch("sqlite3.connect", return_value=mock_conn), \
+         patch("builtins.input", return_value=""), \
+         patch.dict(sys.modules, {"progressbar": MagicMock()}):
+        spec = importlib.util.spec_from_file_location("Stash_Sqlite_Renamer", script_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+    return module.makeFilename
 
 
 makeFilename = load_make_filename()
@@ -134,6 +112,27 @@ class TestMakeFilename(unittest.TestCase):
         info = {"title": None, "date": None, "performer": None, "studio": None, "height": None}
         result = makeFilename(info, "$date $performer - $title [$studio]")
         self.assertEqual(result, "")
+
+    def test_no_variable_tokens(self):
+        result = makeFilename(FULL_INFO, "hardcoded_name")
+        self.assertEqual(result, "hardcoded_name")
+
+    def test_empty_string_title_treated_as_missing(self):
+        info = {**FULL_INFO, "title": ""}
+        result = makeFilename(info, "$date $title")
+        self.assertEqual(result, "2016-12-29")
+
+    def test_string_none_value_passes_through(self):
+        # makeFilename does not filter the string "None"; that is edit_db's responsibility
+        info = {**FULL_INFO, "title": "None"}
+        result = makeFilename(info, "$title")
+        self.assertEqual(result, "None")
+
+    def test_variable_token_in_field_value_not_expanded(self):
+        # $performer inside a field value is not re-expanded; makeFilename is not recursive
+        info = {**FULL_INFO, "title": "The $performer Show"}
+        result = makeFilename(info, "$title")
+        self.assertEqual(result, "The $performer Show")
 
 
 if __name__ == "__main__":
