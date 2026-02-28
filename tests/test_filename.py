@@ -1,36 +1,9 @@
 """
-Tests for makeFilename() in Stash_Sqlite_Renamer.py.
-
-makeFilename() has no DB dependency, so it is imported via importlib after
-patching the module-level side effects (DB connection, input()).
+Tests for makeFilename() in renamer.py.
 """
-import importlib.util
-import pathlib
-import sys
 import unittest
-from unittest.mock import MagicMock, patch
 
-
-def load_make_filename():
-    """Load the real makeFilename from Stash_Sqlite_Renamer.py."""
-    script_path = pathlib.Path(__file__).parent.parent / "Stash_Sqlite_Renamer.py"
-
-    mock_conn = MagicMock()
-    mock_cursor = MagicMock()
-    mock_conn.cursor.return_value = mock_cursor
-    mock_cursor.fetchall.return_value = []
-
-    with patch("sqlite3.connect", return_value=mock_conn), \
-         patch("builtins.input", return_value=""), \
-         patch.dict(sys.modules, {"progressbar": MagicMock()}):
-        spec = importlib.util.spec_from_file_location("Stash_Sqlite_Renamer", script_path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-    return module.makeFilename
-
-
-makeFilename = load_make_filename()
+from renamer import makeFilename
 
 FULL_INFO = {
     "title": "Her Fantasy Ball",
