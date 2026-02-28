@@ -9,7 +9,7 @@ import progressbar
 DB_PATH = r"C:\Users\Winter\.stash\Full.sqlite"
 # Log keep a trace of OldPath & new_path. Could be useful if you want to revert everything. Filename: rename_log.txt
 USING_LOG = True
-# DRY_RUN = True | Will don't change anything in your database & disk.
+# DRY_RUN = True | Will not change anything in your files & database.
 DRY_RUN = False
 # Only take female performer name
 FEMALE_ONLY = False
@@ -18,18 +18,18 @@ DEBUG_MODE = True
 
 
 def logPrint(q):
-    if "[DEBUG]" in q and DEBUG_MODE == False:
+    if "[DEBUG]" in q and not DEBUG_MODE:
         return
     print(q)
 
 
 logPrint("Database Path: {}".format(DB_PATH))
-if DRY_RUN == True:
+if DRY_RUN:
     try:
         os.remove("renamer_dryrun.txt")
     except FileNotFoundError:
         pass
-    logPrint("[DRY_RUN] DRY-RUN Enable")
+    logPrint("[DRY_RUN] DRY-RUN Enabled")
 
 
 def gettingTagsID(name):
@@ -38,9 +38,9 @@ def gettingTagsID(name):
     try:
         id = str(result[0])
         logPrint("[Tag] [{}] {}".format(id, name))
-    except:
+    except (TypeError, IndexError) as e:
         id = None
-        logPrint("[Tag] Error when trying to get:{}".format(name))
+        logPrint("[Tag] Error when trying to get:{} ({})".format(name, e))
     return id
 
 
@@ -51,8 +51,8 @@ def get_SceneID_fromTags(id):
     array_ID = []
     for row in record:
         array_ID.append(row[0])
-    list = ",".join(map(str, array_ID))
-    return list
+    scene_id_list = ",".join(map(str, array_ID))
+    return scene_id_list
 
 
 def get_Perf_fromSceneID(id_scene):
@@ -70,7 +70,9 @@ def get_Perf_fromSceneID(id_scene):
             perf_id = str(row[0])
             cursor.execute("SELECT name,gender from performers WHERE id=?;", [perf_id])
             perf = cursor.fetchall()
-            if FEMALE_ONLY == True:
+            if not perf:
+                continue
+            if FEMALE_ONLY:
                 # Only take female gender
                 if str(perf[0][1]) == "FEMALE":
                     perf_list += str(perf[0][0]) + " "
@@ -154,6 +156,10 @@ def edit_db(query_filename, optional_query=""):
     logPrint("Scenes numbers: {}".format(len(record)))
     progressbar_Index = 0
     progress = progressbar.ProgressBar(redirect_stdout=True).start(len(record))
+    dup_log = open("renamer_duplicate.txt", "a", encoding="utf-8")
+    rename_log = open("rename_log.txt", "a", encoding="utf-8")
+    fail_log = open("renamer_fail.txt", "a", encoding="utf-8")
+    dryrun_log = open("renamer_dryrun.txt", "a", encoding="utf-8")
     for row in record:
         progress.update(progressbar_Index + 1)
         progressbar_Index += 1
@@ -248,7 +254,7 @@ def edit_db(query_filename, optional_query=""):
                 logPrint("[Error] Same filename: [{}]".format(dupl_row[0]))
                 print(
                     "{}|{}|{}\n".format(scene_ID, current_path, new_filename),
-                    file=open("renamer_duplicate.txt", "a", encoding="utf-8"),
+                    file=dup_log,
                 )
             logPrint("\n")
             continue
@@ -263,22 +269,22 @@ def edit_db(query_filename, optional_query=""):
             # THIS PART WILL EDIT YOUR DATABASE, FILES (be careful and know what you do)
             #
             # Windows Rename
-            if DRY_RUN == False:
-                if os.path.isfile(current_path) == True:
-                    if os.path.isfile(new_path) == True:
+            if not DRY_RUN:
+                if os.path.isfile(current_path):
+                    if os.path.isfile(new_path):
                         logPrint("[Error] Destination file already exists on disk: {}".format(new_path))
                         print(
                             "{}|{}|{}\n".format(scene_ID, current_path, new_filename),
-                            file=open("renamer_duplicate.txt", "a", encoding="utf-8"),
+                            file=dup_log,
                         )
                         continue
                     os.rename(current_path, new_path)
-                    if os.path.isfile(new_path) == True:
+                    if os.path.isfile(new_path):
                         logPrint("[OS] File Renamed! ({})".format(current_filename))
-                        if USING_LOG == True:
+                        if USING_LOG:
                             print(
                                 "{}|{}|{}\n".format(scene_ID, current_path, new_path),
-                                file=open("rename_log.txt", "a", encoding="utf-8"),
+                                file=rename_log,
                             )
                     else:
                         logPrint(
@@ -286,7 +292,7 @@ def edit_db(query_filename, optional_query=""):
                         )
                         print(
                             "{} -> {}\n".format(current_path, new_path),
-                            file=open("renamer_fail.txt", "a", encoding="utf-8"),
+                            file=fail_log,
                         )
                 else:
                     logPrint(
@@ -296,11 +302,15 @@ def edit_db(query_filename, optional_query=""):
                 logPrint("[DRY_RUN][OS] File should be renamed")
                 print(
                     "{} -> {}\n".format(current_path, new_path),
-                    file=open("renamer_dryrun.txt", "a", encoding="utf-8"),
+                    file=dryrun_log,
                 )
             logPrint("\n")
         # break
     progress.finish()
+    dup_log.close()
+    rename_log.close()
+    fail_log.close()
+    dryrun_log.close()
     return
 
 

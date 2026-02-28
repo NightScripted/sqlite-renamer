@@ -113,6 +113,27 @@ class TestMakeFilename(unittest.TestCase):
         result = makeFilename(info, "$date $performer - $title [$studio]")
         self.assertEqual(result, "")
 
+    def test_no_variable_tokens(self):
+        result = makeFilename(FULL_INFO, "hardcoded_name")
+        self.assertEqual(result, "hardcoded_name")
+
+    def test_empty_string_title_treated_as_missing(self):
+        info = {**FULL_INFO, "title": ""}
+        result = makeFilename(info, "$date $title")
+        self.assertEqual(result, "2016-12-29")
+
+    def test_string_none_value_passes_through(self):
+        # makeFilename does not filter the string "None"; that is edit_db's responsibility
+        info = {**FULL_INFO, "title": "None"}
+        result = makeFilename(info, "$title")
+        self.assertEqual(result, "None")
+
+    def test_variable_token_in_field_value_not_expanded(self):
+        # $performer inside a field value is not re-expanded; makeFilename is not recursive
+        info = {**FULL_INFO, "title": "The $performer Show"}
+        result = makeFilename(info, "$title")
+        self.assertEqual(result, "The $performer Show")
+
 
 if __name__ == "__main__":
     unittest.main()

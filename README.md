@@ -41,7 +41,7 @@ Available variables: `$date` `$performer` `$title` `$studio` `$height`
 | `$date $performer - $title [$studio]` | `2016-12-29 Eva Lovia - Her Fantasy Ball [Sneaky Sex].mp4` |
 
 Notes:
-- Illegal Windows filename characters are stripped automatically.
+- Illegal Windows filename characters are stripped automatically. `#` and `,` are also stripped even though they are legal on Windows — edit the character-stripping regex in the script to preserve them.
 - If the full path exceeds 240 characters, the script falls back to `$date - $title` (or `$title` alone if no date is available).
 - Heights of 2160 and 4320 are shown as `4k` and `8k`; others as `<height>p` (e.g. `1080p`).
 - If a scene has more than 3 performers, `$performer` is omitted.

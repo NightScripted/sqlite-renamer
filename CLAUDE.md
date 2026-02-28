@@ -13,7 +13,7 @@ Single-file Python script (`Stash_Sqlite_Renamer.py`) that renames video files o
 | `DB_PATH` | hardcoded path | Path to the Stash `.sqlite` database |
 | `DRY_RUN` | `False` | If `True`, no files or DB are modified |
 | `USING_LOG` | `True` | Write a `rename_log.txt` for rollback reference |
-| `FEMALE_ONLY` | `False` | Restrict performer names to female gender only |
+| `FEMALE_ONLY` | `False` | Restrict performer names to female gender only. When `True` and no female performers are found, `$performer` is treated as absent and silently removed from the filename. |
 | `DEBUG_MODE` | `True` | Print verbose debug output |
 
 ## Filename Template Variables
