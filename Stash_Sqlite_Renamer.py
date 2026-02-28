@@ -100,31 +100,31 @@ def makeFilename(scene_info, query):
     new_filename = str(query)
     if "$date" in new_filename:
         if scene_info.get("date") == "" or scene_info.get("date") is None:
-            new_filename = re.sub("\$date\s*", "", new_filename)
+            new_filename = re.sub(r"\$date\s*", "", new_filename)
         else:
             new_filename = new_filename.replace("$date", scene_info["date"])
 
     if "$performer" in new_filename:
         if scene_info.get("performer") == "" or scene_info.get("performer") is None:
-            new_filename = re.sub("\$performer\s*", "", new_filename)
+            new_filename = re.sub(r"\$performer\s*", "", new_filename)
         else:
             new_filename = new_filename.replace("$performer", scene_info["performer"])
 
     if "$title" in new_filename:
         if scene_info.get("title") == "" or scene_info.get("title") is None:
-            new_filename = re.sub("\$title\s*", "", new_filename)
+            new_filename = re.sub(r"\$title\s*", "", new_filename)
         else:
             new_filename = new_filename.replace("$title", scene_info["title"])
 
     if "$studio" in new_filename:
         if scene_info.get("studio") == "" or scene_info.get("studio") is None:
-            new_filename = re.sub("\$studio\s*", "", new_filename)
+            new_filename = re.sub(r"\$studio\s*", "", new_filename)
         else:
             new_filename = new_filename.replace("$studio", scene_info["studio"])
 
     if "$height" in new_filename:
         if scene_info.get("height") == "" or scene_info.get("height") is None:
-            new_filename = re.sub("\$height\s*", "", new_filename)
+            new_filename = re.sub(r"\$height\s*", "", new_filename)
         else:
             new_filename = new_filename.replace("$height", scene_info["height"])
     new_filename = re.sub("^\s*-\s*", "", new_filename)
@@ -309,7 +309,7 @@ try:
     cursor = sqliteConnection.cursor()
     logPrint("Python successfully connected to SQLite\n")
 except sqlite3.Error as error:
-    logPrint("FATAL SQLITE Error: ", error)
+    logPrint("FATAL SQLITE Error: {}".format(error))
     input("Press Enter to continue...")
     sys.exit(1)
 
