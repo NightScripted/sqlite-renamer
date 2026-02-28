@@ -5,8 +5,9 @@ https://discourse.stashapp.cc/t/sqlite-renamer-for-stash/1476
 Uses metadata from your [Stash](https://github.com/stashapp/stash) SQLite database to rename your video files on disk.
 
 ## :exclamation: Important :exclamation:
-**This will make permanent changes to your database and files!**
-###### (Enable `USING_LOG` to write a log file you can use to revert changes.)
+**This will make permanent changes to your files on disk.**
+The SQLite database is read-only — the script never writes to it.
+###### (Enable `USING_LOG` to write `rename_log.txt` as a rollback reference.)
 
 
 ## Requirements
@@ -16,7 +17,7 @@ Uses metadata from your [Stash](https://github.com/stashapp/stash) SQLite databa
 
 ## Setup
 
-1. Copy your Stash database (use "Backup" in Stash Settings).
+1. Back up your video files before a live run. Enable `USING_LOG` to write `rename_log.txt` as a rollback reference.
 2. Set `DB_PATH` ([Line 9](Stash_Sqlite_Renamer.py#L9)) to your `.sqlite` file path.
 3. Edit the personal configuration section ([Line 309–333](Stash_Sqlite_Renamer.py#L309)) with your tags and filename templates.
 

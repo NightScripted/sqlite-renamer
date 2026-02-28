@@ -32,7 +32,7 @@ Single-file Python script (`Stash_Sqlite_Renamer.py`) that renames video files o
 
 ## Cautions
 
-- The script directly modifies files on disk and updates the SQLite DB.
+- The script modifies files on disk only. It reads from SQLite but never writes to it — there are no `UPDATE`/`INSERT`/`DELETE` statements.
 - Always set `DRY_RUN = True` and review `renamer_dryrun.txt` before a real run.
 - The "personal configuration" section (lines 309–333) contains the user's tag-to-template mappings and path filters. Treat it as user data: when editing it, confirm the user's intended tag names and templates rather than inferring from the rest of the script.
 

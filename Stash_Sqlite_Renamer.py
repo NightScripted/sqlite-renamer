@@ -87,6 +87,8 @@ def get_Perf_fromSceneID(id_scene):
 def get_Studio_fromID(id):
     cursor.execute("SELECT name from studios WHERE id=?;", [id])
     record = cursor.fetchall()
+    if not record:
+        return ""
     studio_name = str(record[0][0])
     return studio_name
 
@@ -127,10 +129,10 @@ def makeFilename(scene_info, query):
             new_filename = re.sub(r"\$height\s*", "", new_filename)
         else:
             new_filename = new_filename.replace("$height", scene_info["height"])
-    new_filename = re.sub("^\s*-\s*", "", new_filename)
-    new_filename = re.sub("\s*-\s*$", "", new_filename)
-    new_filename = re.sub("\[\W*]", "", new_filename)
-    new_filename = re.sub("\s{2,}", " ", new_filename)
+    new_filename = re.sub(r"^\s*-\s*", "", new_filename)
+    new_filename = re.sub(r"\s*-\s*$", "", new_filename)
+    new_filename = re.sub(r"\[\W*]", "", new_filename)
+    new_filename = re.sub(r"\s{2,}", " ", new_filename)
     new_filename = new_filename.strip()
     return new_filename
 
@@ -166,7 +168,7 @@ def edit_db(query_filename, optional_query=""):
         scene_Studio_id = str(row[5])
         file_height = str(row[6])
         # By default, title contains extensions.
-        scene_title = re.sub(file_extension + "$", "", scene_title)
+        scene_title = re.sub(re.escape(file_extension) + "$", "", scene_title)
 
         performer_name = get_Perf_fromSceneID(scene_ID)
 
@@ -237,8 +239,8 @@ def edit_db(query_filename, optional_query=""):
 
         # Looking for duplicate filename
         cursor.execute(
-            "SELECT sf.scene_id FROM scenes_files AS sf LEFT JOIN files AS f ON sf.file_id = f.id WHERE f.basename LIKE ? AND NOT sf.scene_id=?;",
-            ["%" + new_filename, scene_ID],
+            "SELECT sf.scene_id FROM scenes_files AS sf LEFT JOIN files AS f ON sf.file_id = f.id WHERE f.basename = ? AND NOT sf.scene_id=?;",
+            [new_filename, scene_ID],
         )
         dupl_check = cursor.fetchall()
         if len(dupl_check) > 0:
@@ -299,8 +301,6 @@ def edit_db(query_filename, optional_query=""):
             logPrint("\n")
         # break
     progress.finish()
-    if DRY_RUN == False:
-        sqliteConnection.commit()
     return
 
 
@@ -328,6 +328,8 @@ for _, dict_section in tags_dict.items():
     id_tags = gettingTagsID(tag_name)
     if id_tags is not None:
         id_scene = get_SceneID_fromTags(id_tags)
+        if not id_scene:
+            continue
         option_sqlite_query = (
             "WHERE id in ({}) AND path LIKE 'E:\\Film\\R18\\%'".format(id_scene)
         )
@@ -339,8 +341,6 @@ for _, dict_section in tags_dict.items():
 
 # END OF PERSONAL THINGS
 
-if DRY_RUN == False:
-    sqliteConnection.commit()
 cursor.close()
 sqliteConnection.close()
 logPrint("The SQLite connection is closed")
