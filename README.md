@@ -19,16 +19,16 @@ The SQLite database is read-only — the script never writes to it.
 ## Setup
 
 1. Back up your video files before a live run. Enable `USING_LOG` to write `rename_log.txt` as a rollback reference.
-2. Set `DB_PATH` ([Line 9](Stash_Sqlite_Renamer.py#L9)) to your `.sqlite` file path.
-3. Edit the personal configuration section ([Line 326–352](Stash_Sqlite_Renamer.py#L326)) with your tags and filename templates.
+2. Set `DB_PATH` in [`config.py`](config.py) to your `.sqlite` file path.
+3. Edit `tags_dict` and `PATH_FILTER` in [`config.py`](config.py) with your tags and filename templates.
 
 ## First Run (Dry Run)
 
-Set `DRY_RUN = True` ([Line 13](Stash_Sqlite_Renamer.py#L13)) — nothing will be changed.
+Set `DRY_RUN = True` in [`config.py`](config.py) — nothing will be changed.
 
 This creates `renamer_dryrun.txt` showing how each file would be renamed.
 
-You can uncomment the `break` ([Line 308](Stash_Sqlite_Renamer.py#L308)) to stop after the first file.
+Set `STOP_AFTER_FIRST = True` in [`config.py`](config.py) to stop after the first file.
 
 ## Filename Templates
 

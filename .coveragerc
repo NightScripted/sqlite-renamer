@@ -4,6 +4,7 @@ omit =
     tests/*
     .venv/*
     setup.py
+    run_renamer.py
 
 [report]
 exclude_lines =
