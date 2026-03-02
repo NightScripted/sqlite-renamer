@@ -20,7 +20,6 @@ def connect() -> None:
         logger.logPrint("Python successfully connected to SQLite\n")
     except sqlite3.Error as error:
         logger.logPrint("FATAL SQLITE Error: {}".format(error))
-        input("Press Enter to continue...")
         sys.exit(1)
 
 

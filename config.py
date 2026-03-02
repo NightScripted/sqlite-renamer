@@ -8,7 +8,7 @@ DB_PATH = r"C:\Users\Winter\.stash\Full.sqlite"
 USING_LOG = True
 
 # DRY_RUN = True → no files are modified; proposed renames go to renamer_dryrun.txt
-DRY_RUN = False
+DRY_RUN = True
 
 # Only include female performer names; when True and no female performers are
 # found, $performer is treated as absent and removed from the filename.

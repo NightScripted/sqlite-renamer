@@ -72,7 +72,7 @@ def makeFilename(scene_info, query):
     return new_filename
 
 
-def edit_db(query_filename, optional_query=""):
+def edit_db(query_filename, optional_query="", params=()):
     """Rename scene files on disk according to a filename template.
 
     Fetches scenes from the Stash SQLite database (optionally filtered by
@@ -105,7 +105,7 @@ def edit_db(query_filename, optional_query=""):
     LEFT JOIN folders AS d ON f.parent_folder_id = d.id
     LEFT JOIN video_files AS vf ON f.id = vf.file_id
     """
-    db.cursor.execute(f'{scene_query} {optional_query};')
+    db.cursor.execute(f'{scene_query} {optional_query};', params)
     record = db.cursor.fetchall()
     if len(record) == 0:
         logger.logPrint("[Warn] There is no scene to change with this query")
@@ -205,10 +205,13 @@ def edit_db(query_filename, optional_query=""):
                     )
                     continue
 
-            # Looking for duplicate filename
+            # Looking for duplicate filename in the same directory
             db.cursor.execute(
-                "SELECT sf.scene_id FROM scenes_files AS sf LEFT JOIN files AS f ON sf.file_id = f.id WHERE f.basename = ? AND NOT sf.scene_id=?;",
-                [new_filename, scene_ID],
+                "SELECT sf.scene_id FROM scenes_files AS sf"
+                " LEFT JOIN files AS f ON sf.file_id = f.id"
+                " LEFT JOIN folders AS fd ON f.parent_folder_id = fd.id"
+                " WHERE f.basename = ? AND NOT sf.scene_id = ? AND fd.path = ?;",
+                [new_filename, scene_ID, current_directory],
             )
             dupl_check = db.cursor.fetchall()
             if len(dupl_check) > 0:

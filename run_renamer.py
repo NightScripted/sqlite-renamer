@@ -30,10 +30,12 @@ if __name__ == "__main__":
             id_scene = db.get_SceneID_fromTags(id_tags)
             if not id_scene:
                 continue
-            option_sqlite_query = (
-                "WHERE id in ({}) AND path LIKE '{}'".format(id_scene, config.PATH_FILTER)
-            )
-            edit_db(filename_template, option_sqlite_query)
+            if config.PATH_FILTER:
+                option_sqlite_query = "WHERE id in ({}) AND d.path LIKE ?".format(id_scene)
+                edit_db(filename_template, option_sqlite_query, (config.PATH_FILTER,))
+            else:
+                option_sqlite_query = "WHERE id in ({})".format(id_scene)
+                edit_db(filename_template, option_sqlite_query)
             logger.logPrint("====================")
 
     # Select ALL scenes
