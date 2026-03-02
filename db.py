@@ -1,3 +1,4 @@
+import pathlib
 import sqlite3
 import sys
 
@@ -15,7 +16,8 @@ def connect() -> None:
     """
     global _connection, cursor
     try:
-        _connection = sqlite3.connect(config.DB_PATH)
+        uri = pathlib.Path(config.DB_PATH).resolve().as_uri() + "?mode=ro"
+        _connection = sqlite3.connect(uri, uri=True)
         cursor = _connection.cursor()
         logger.logPrint("Python successfully connected to SQLite\n")
     except sqlite3.Error as error:

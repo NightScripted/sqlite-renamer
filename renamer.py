@@ -94,8 +94,10 @@ def edit_db(query_filename, optional_query="", params=()):
     Args:
         query_filename (str): Filename template passed to :func:`makeFilename`.
         optional_query (str): Optional SQL ``WHERE`` clause appended to the
-            base scene query, e.g. ``"WHERE id in (1,2,3)"``. Defaults to
+            base scene query, e.g. ``"WHERE s.id in (1,2,3)"``. Defaults to
             ``""`` (all scenes).
+        params (tuple): Values bound to any ``?`` placeholders in
+            *optional_query*. Defaults to ``()`` (no parameters).
     """
     scene_query = """
     SELECT s.id,f.basename,d.path,s.title,s.date,s.studio_id,vf.height

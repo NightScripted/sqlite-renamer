@@ -1,4 +1,5 @@
 import os
+import sys
 
 import config
 import db
@@ -18,30 +19,33 @@ if __name__ == "__main__":
         logger.logPrint("[DRY_RUN] DRY-RUN Enabled")
 
     db.connect()
+    try:
+        # THIS PART IS PERSONAL THINGS, YOU SHOULD CHANGE THINGS BELOW :)
 
-    # THIS PART IS PERSONAL THINGS, YOU SHOULD CHANGE THINGS BELOW :)
+        # Select Scene with Specific Tags
+        for _, dict_section in config.tags_dict.items():
+            tag_name = dict_section.get("tag")
+            filename_template = dict_section.get("filename")
+            id_tags = db.gettingTagsID(tag_name)
+            if id_tags is not None:
+                id_scene = db.get_SceneID_fromTags(id_tags)
+                if not id_scene:
+                    continue
+                if config.PATH_FILTER:
+                    option_sqlite_query = "WHERE s.id in ({}) AND d.path LIKE ?".format(id_scene)
+                    edit_db(filename_template, option_sqlite_query, (config.PATH_FILTER,))
+                else:
+                    option_sqlite_query = "WHERE s.id in ({})".format(id_scene)
+                    edit_db(filename_template, option_sqlite_query)
+                logger.logPrint("====================")
 
-    # Select Scene with Specific Tags
-    for _, dict_section in config.tags_dict.items():
-        tag_name = dict_section.get("tag")
-        filename_template = dict_section.get("filename")
-        id_tags = db.gettingTagsID(tag_name)
-        if id_tags is not None:
-            id_scene = db.get_SceneID_fromTags(id_tags)
-            if not id_scene:
-                continue
-            if config.PATH_FILTER:
-                option_sqlite_query = "WHERE id in ({}) AND d.path LIKE ?".format(id_scene)
-                edit_db(filename_template, option_sqlite_query, (config.PATH_FILTER,))
-            else:
-                option_sqlite_query = "WHERE id in ({})".format(id_scene)
-                edit_db(filename_template, option_sqlite_query)
-            logger.logPrint("====================")
+        # Select ALL scenes
+        # edit_db("$date $performer - $title [$studio]")
 
-    # Select ALL scenes
-    # edit_db("$date $performer - $title [$studio]")
+        # END OF PERSONAL THINGS
 
-    # END OF PERSONAL THINGS
+    finally:
+        db.close()
 
-    db.close()
-    input("Press Enter to continue...")
+    if sys.stdin.isatty():
+        input("Press Enter to continue...")
