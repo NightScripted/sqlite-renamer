@@ -25,6 +25,7 @@ Python tool that renames video files on disk by reading metadata from a [Stash](
 | `DEBUG_MODE` | `True` | Print verbose debug output |
 | `STOP_AFTER_FIRST` | `False` | Stop `edit_db` after the first scene (useful for spot-checking a template) |
 | `PATH_FILTER` | `E:\Film\R18\%` | SQL LIKE filter applied to folder path in WHERE clause; set to `""` to process all scenes |
+| `FALLBACK_TEMPLATE` | `$studio - $date - $performer - $title` | Filename template applied to scenes not matched by any tag in `tags_dict`; set to `""` to skip the fallback pass |
 
 ## Filename Template Variables
 
