@@ -33,3 +33,7 @@ tags_dict = {
 # Optional SQL LIKE filter applied to the folder path in the WHERE clause.
 # Set to "" to process all scenes regardless of path.
 PATH_FILTER = r"E:\Film\R18\%"
+
+# Fallback filename template applied to scenes that do not match any tag in
+# tags_dict above.  Set to "" to skip the fallback pass entirely.
+FALLBACK_TEMPLATE = "$studio - $date - $performer - $title"
