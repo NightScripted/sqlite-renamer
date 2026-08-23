@@ -116,3 +116,7 @@ python -m pytest tests/ -v --cov=. --cov-report=term-missing --cov-fail-under=80
 ```
 
 GitHub Actions runs this check on Python 3.12, 3.13, and 3.14. Dependabot checks Python packages weekly and GitHub Actions monthly.
+
+## License
+
+This project is licensed under the [GNU General Public License v3.0 or later](LICENSE). You may use, modify, and distribute it—including commercially—provided that distributed derivative works remain available under the same license and include their corresponding source code.
