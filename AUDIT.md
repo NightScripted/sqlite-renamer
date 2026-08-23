@@ -1,13 +1,21 @@
-# AUDIT — sqlite-renamer
+# Historical audit — sqlite-renamer
 
 Date: 2026-06-16
 Auditor: Claude Code (Opus 4.7)
 Audit type: Deep
 Last commit: `5d8b291` — "Merge pull request #3 from ZacharyRW/refactor-for-readability"
 
-> **Relationship to existing review docs.** `BACKLOG.md` exists but is empty (just headers). Recent commits show two correctness/safety waves landed: "Fix PATH_FILTER empty-clause bug, input() hang, duplicate-check scope, and DRY_RUN default" (f7bc9f1) and "Fix stem validation, OSError handling, sanitize fallback path, lazy queries" (9d80e07). This audit starts fresh.
+> **Historical record, reconciled 2026-08-23.** This audit describes the June 16 checkout, not the current dependency or CI baseline. The source-code findings have not been re-audited here; the configuration and documentation facts below have been checked against current `main`.
+>
+> **Current reconciliation.** The runtime dependency is `progressbar2~=4.5.0`; development dependencies are `pytest>=9.1.1` and `pytest-cov>=7.1.0`. CI runs Python 3.12, 3.13, and 3.14 with `actions/checkout@v7`, `actions/setup-python@v7`, and the existing 80% coverage gate. Dependabot now monitors pip dependencies weekly and GitHub Actions monthly. `DRY_RUN` defaults to `True`, and `CLAUDE.md` now documents both that default and the full CI command. No `LICENSE` file is present. The former first-match tag claim was incorrect; the verified behavior and workaround are documented in `README.md`, `CLAUDE.md`, and `BACKLOG.md`.
+>
+> **Relationship to existing review docs at audit time.** `BACKLOG.md` was empty (just headers). Recent commits showed two correctness/safety waves had landed: "Fix PATH_FILTER empty-clause bug, input() hang, duplicate-check scope, and DRY_RUN default" (f7bc9f1) and "Fix stem validation, OSError handling, sanitize fallback path, lazy queries" (9d80e07). This audit started fresh.
 
 ---
+
+## June 16, 2026 audit snapshot
+
+All sections below retain the June 16 audit's observations and dated dependency, Python-version, and GitHub Actions values. See the current reconciliation above for the verified present-day baseline.
 
 ## 1. Snapshot
 

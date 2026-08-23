@@ -19,11 +19,11 @@ Python tool that renames video files on disk by reading metadata from a [Stash](
 | Variable | Default | Purpose |
 |---|---|---|
 | `DB_PATH` | hardcoded path | Path to the Stash `.sqlite` database |
-| `DRY_RUN` | `False` | If `True`, no files are modified (DB is always read-only) |
+| `DRY_RUN` | `True` | If `True`, no files are modified (DB is always read-only) |
 | `USING_LOG` | `True` | Write a `rename_log.txt` for rollback reference |
 | `FEMALE_ONLY` | `False` | Restrict performer names to female gender only. When `True` and no female performers are found, `$performer` is treated as absent and silently removed from the filename. |
 | `DEBUG_MODE` | `True` | Print verbose debug output |
-| `STOP_AFTER_FIRST` | `False` | Stop `edit_db` after the first scene (useful for spot-checking a template) |
+| `STOP_AFTER_FIRST` | `False` | Stop each `edit_db()` tag or fallback pass after its first scene; multiple matching passes can each process one scene |
 | `PATH_FILTER` | `E:\Film\R18\%` | SQL LIKE filter applied to folder path in WHERE clause; set to `""` to process all scenes |
 | `FALLBACK_TEMPLATE` | `$studio - $date - $performer - $title` | Filename template applied to scenes not matched by any tag in `tags_dict`; set to `""` to skip the fallback pass |
 
@@ -42,15 +42,21 @@ Python tool that renames video files on disk by reading metadata from a [Stash](
 - `renamer_fail.txt` — generated when OS rename fails
 - `stash-go.sqlite` — gitignored; the live Stash database (never commit)
 
+`rename_log.txt`, `renamer_duplicate.txt`, and `renamer_fail.txt` append between runs. `run_renamer.py` clears only `renamer_dryrun.txt` at the beginning of a dry run.
+
 ## Cautions
 
 - The script modifies files on disk only. It reads from SQLite but never writes to it — there are no `UPDATE`/`INSERT`/`DELETE` statements.
 - Always set `DRY_RUN = True` and review `renamer_dryrun.txt` before a real run.
 - `config.py` contains the user's tag-to-template mappings (`tags_dict`) and path filter (`PATH_FILTER`). Treat it as user data: when editing it, confirm the user's intended tag names and templates rather than inferring from the rest of the code.
+- Keep configured tag rules mutually exclusive. The runner processes every matching tag pass in dictionary order; it does not enforce the README's former first-match behavior.
 
 ## Testing
 
 Tests live in `tests/`. Run with:
 ```bash
-python -m pytest tests/
+python -m pip install -r requirements.txt -r requirements-dev.txt
+python -m pytest tests/ -v --cov=. --cov-report=term-missing --cov-fail-under=80
 ```
+
+CI runs this command on Python 3.12, 3.13, and 3.14. It is not currently a test matrix for earlier Python releases.
