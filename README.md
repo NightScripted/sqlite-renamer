@@ -37,7 +37,7 @@ Run:
 python run_renamer.py
 ```
 
-This clears and recreates `renamer_dryrun.txt`, showing each proposed `old_path -> new_path` rename. Set `STOP_AFTER_FIRST = True` to produce a one-scene spot check.
+This clears and recreates `renamer_dryrun.txt`, showing each proposed `old_path -> new_path` rename. Set `STOP_AFTER_FIRST = True` to limit each matching tag or fallback pass to one scene; a configuration with multiple matching passes can therefore produce multiple proposed renames.
 
 For a live run, back up the files, review the dry-run output, then explicitly set `DRY_RUN = False` and run the same command again. A live run never writes to the SQLite database.
 
