@@ -100,8 +100,8 @@ All run artifacts are created next to the command's working directory and are ig
 | File | When written | Contents |
 |---|---|---|
 | `renamer_dryrun.txt` | Dry run; cleared at the start of each dry run | Proposed `old_path -> new_path` renames |
-| `rename_log.txt` | Successful live rename when `USING_LOG = True` | `scene_id|old_path|new_path` rollback reference |
-| `renamer_duplicate.txt` | Database collision, or an existing destination during a live rename | `scene_id|current_path|new_filename` |
+| `rename_log.txt` | Successful live rename when `USING_LOG = True` | `scene_id\|old_path\|new_path` rollback reference |
+| `renamer_duplicate.txt` | Database collision, or an existing destination during a live rename | `scene_id\|current_path\|new_filename` |
 | `renamer_fail.txt` | OS-level rename error | `old_path -> new_path` |
 
 `rename_log.txt`, `renamer_duplicate.txt`, and `renamer_fail.txt` append across runs. Archive or clear them before a new live run if you need a per-run record.
