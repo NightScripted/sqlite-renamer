@@ -119,4 +119,4 @@ GitHub Actions runs this check on Python 3.12, 3.13, and 3.14. Dependabot checks
 
 ## License
 
-This project is licensed under the [GNU General Public License v3.0 or later](LICENSE). You may use, modify, and distribute it—including commercially—provided that distributed derivative works remain available under the same license and include their corresponding source code.
+This project is licensed under the [GNU General Public License v3.0 or later](LICENSE). You may use, modify, and distribute it—including commercially—provided that distributed derivative works remain available under the same license and their corresponding source is made available under GPL terms.
