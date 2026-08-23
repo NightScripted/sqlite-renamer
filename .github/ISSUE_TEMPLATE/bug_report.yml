@@ -1,0 +1,52 @@
+name: Bug report
+description: Report a reproducible problem with SQLite Renamer for Stash.
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include a Stash database, media files, credentials, or unredacted private paths and metadata. Report security vulnerabilities privately through the Security tab instead.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and its impact.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Safe reproduction steps
+      description: Include the relevant template and redacted configuration. State whether this occurred in dry-run or live mode.
+      placeholder: |
+        1. Set DRY_RUN = True
+        2. Use this redacted template/configuration: ...
+        3. Run python run_renamer.py
+        4. Observe ...
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: Python 3.14.7
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Run mode
+      options:
+        - Dry run
+        - Live run
+        - Not applicable
+    validations:
+      required: true
