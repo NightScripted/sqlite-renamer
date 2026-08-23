@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 import config
 import db
 import logger
+import run_renamer
 from renamer import edit_db
 
 # ---------------------------------------------------------------------------
@@ -306,6 +307,49 @@ class TestEditDb(unittest.TestCase):
         # Only one fetchall call: the main scene query.
         # The performer and duplicate-check queries must NOT have run.
         self.assertEqual(mock_cursor.fetchall.call_count, 1)
+
+
+class TestRunnerTagPrecedence(unittest.TestCase):
+
+    def setUp(self):
+        self._original_tags = config.tags_dict
+        self._original_fallback = config.FALLBACK_TEMPLATE
+        self._original_path_filter = config.PATH_FILTER
+        self._original_dry_run = config.DRY_RUN
+        config.tags_dict = {
+            "first": {"tag": "First", "filename": "$title"},
+            "second": {"tag": "Second", "filename": "$date $title"},
+        }
+        config.FALLBACK_TEMPLATE = "$studio - $title"
+        config.PATH_FILTER = ""
+        config.DRY_RUN = False
+
+    def tearDown(self):
+        config.tags_dict = self._original_tags
+        config.FALLBACK_TEMPLATE = self._original_fallback
+        config.PATH_FILTER = self._original_path_filter
+        config.DRY_RUN = self._original_dry_run
+
+    def test_first_matching_tag_claims_scene_and_excludes_it_from_later_passes(self):
+        with patch.object(run_renamer.db, "connect"), \
+             patch.object(run_renamer.db, "close"), \
+             patch.object(run_renamer.db, "gettingTagsID", side_effect=["10", "20"]), \
+             patch.object(run_renamer.db, "get_SceneID_fromTags", side_effect=["1,2", "2,3"]), \
+             patch.object(run_renamer, "edit_db") as mock_edit_db:
+            run_renamer.run()
+
+        self.assertEqual(
+            mock_edit_db.call_args_list,
+            [
+                unittest.mock.call("$title", "WHERE s.id IN (?,?)", ("1", "2")),
+                unittest.mock.call("$date $title", "WHERE s.id IN (?)", ("3",)),
+                unittest.mock.call(
+                    "$studio - $title",
+                    "WHERE s.id NOT IN (?,?,?)",
+                    ("1", "2", "3"),
+                ),
+            ],
+        )
 
 
 if __name__ == "__main__":
