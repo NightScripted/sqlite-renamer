@@ -113,13 +113,9 @@ def run(plan_path: str = PLAN_FILE) -> None:
         dry_run_log.write(rendered)
     logger.logPrint(rendered.rstrip())
     logger.logPrint("[PLAN] Wrote {}".format(plan_path))
-    if config.DRY_RUN:
-        return
-    if issues:
-        raise RuntimeError("rename plan is blocked; review renamer_dryrun.txt")
-    apply_issues = apply_plan(plan)
-    if apply_issues:
-        raise RuntimeError("rename plan changed before apply; review renamer_dryrun.txt")
+    # Planning never mutates files. A reviewed persisted plan requires the
+    # explicit --apply-plan command and DRY_RUN=False configuration.
+    return
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -132,6 +128,8 @@ def main(argv: list[str] | None = None) -> None:
     try:
         config.load_local_config(args.config)
         if args.apply_plan:
+            if config.DRY_RUN:
+                parser.error("refusing to apply a plan while DRY_RUN is enabled")
             issues = apply_plan(read_plan(args.apply_plan))
             if issues:
                 parser.error("plan is blocked or changed; regenerate and review it")

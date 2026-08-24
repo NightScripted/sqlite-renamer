@@ -300,9 +300,6 @@ def edit_db(query_filename, optional_query="", params=()):
     issues = validate_plan(plan)
     with open("renamer_dryrun.txt", "a", encoding="utf-8") as dry_run_log:
         dry_run_log.write(render_plan(plan, issues))
-    if config.DRY_RUN:
-        return plan
-    if issues:
-        return plan
-    apply_plan(plan)
+    # Compatibility calls render a plan only. Filesystem mutation is available
+    # exclusively through ``run_renamer.py --apply-plan`` with DRY_RUN disabled.
     return plan

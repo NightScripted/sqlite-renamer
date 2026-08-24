@@ -149,16 +149,37 @@ def render_plan(plan: RenamePlan, issues: Iterable[PlanIssue]) -> str:
 
 
 def apply_plan(plan: RenamePlan) -> tuple[PlanIssue, ...]:
-    """Revalidate and apply only a digest-valid, conflict-free plan."""
+    """Revalidate, atomically move, and recover a digest-valid plan.
+
+    Source and destination share a directory by validation contract, so a hard
+    link can claim the destination with no-replace semantics before the source
+    name is removed. If any operation fails, completed operations are restored.
+    """
     if plan_digest(plan.operations) != plan.digest:
         raise ValueError("rename-plan changed after validation")
     issues = validate_plan(plan)
     if issues:
         return issues
+    completed: list[RenameOperation] = []
     for operation in plan.operations:
         if operation.source != operation.destination:
             try:
-                os.rename(operation.source, operation.destination)
+                os.link(operation.source, operation.destination)
+                os.unlink(operation.source)
+                completed.append(operation)
             except OSError as error:
+                for completed_operation in reversed(completed):
+                    try:
+                        os.link(completed_operation.destination, completed_operation.source)
+                        os.unlink(completed_operation.destination)
+                    except OSError:
+                        pass
                 return (PlanIssue(operation.scene_id, operation.source, operation.destination, "apply_failed", str(error)),)
+    if completed:
+        import config
+
+        if config.USING_LOG:
+            with open("rename_log.txt", "a", encoding="utf-8") as rename_log:
+                for operation in completed:
+                    rename_log.write("{}|{}|{}\n".format(operation.scene_id, operation.source, operation.destination))
     return ()

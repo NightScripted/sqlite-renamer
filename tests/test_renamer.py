@@ -267,7 +267,7 @@ class TestEditDb(unittest.TestCase):
             content = f.read()
         self.assertIn("missing_source", content)
 
-    def test_live_rename_calls_os_rename(self):
+    def test_compatibility_wrapper_never_applies_a_new_plan(self):
         config.DRY_RUN = False
         config.USING_LOG = True
         mock_cursor.fetchall.side_effect = [
@@ -279,7 +279,7 @@ class TestEditDb(unittest.TestCase):
              patch("os.path.exists", return_value=False), \
              patch("os.rename") as mock_rename:
             edit_db("$title")
-            mock_rename.assert_called_once()
+            mock_rename.assert_not_called()
 
     def test_os_rename_failure_writes_fail_log_and_continues(self):
         config.DRY_RUN = False

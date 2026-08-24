@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 
+import config
 import db
 from rename_plan import RenameOperation, sanitize_filename
 from renamer import makeFilename
@@ -42,12 +43,14 @@ def discover_operations(template: str, optional_query: str = "", params: tuple =
         }
         stem = makeFilename(scene_info, template)
         if not stem or not stem.strip(".") or not any(char.isalnum() for char in stem):
-            operations.append(RenameOperation(str(scene_id), source, source, "filename template produced no usable name"))
-            continue
-        try:
-            filename = sanitize_filename(stem + extension)
-        except ValueError as error:
-            operations.append(RenameOperation(str(scene_id), source, source, str(error)))
-            continue
-        operations.append(RenameOperation(str(scene_id), source, os.path.join(str(directory), filename)))
+            operation = RenameOperation(str(scene_id), source, source, "filename template produced no usable name")
+        else:
+            try:
+                filename = sanitize_filename(stem + extension)
+                operation = RenameOperation(str(scene_id), source, os.path.join(str(directory), filename))
+            except ValueError as error:
+                operation = RenameOperation(str(scene_id), source, source, str(error))
+        operations.append(operation)
+        if config.STOP_AFTER_FIRST:
+            break
     return operations

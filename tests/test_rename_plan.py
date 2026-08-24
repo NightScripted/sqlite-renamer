@@ -2,7 +2,9 @@
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
+import config
 from rename_plan import (
     RenameOperation,
     apply_plan,
@@ -30,12 +32,15 @@ class TestRenamePlan(unittest.TestCase):
 
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
+        self.original_cwd = os.getcwd()
+        os.chdir(self.tempdir.name)
         self.source = os.path.join(self.tempdir.name, "old.mp4")
         self.destination = os.path.join(self.tempdir.name, "new.mp4")
         with open(self.source, "w", encoding="utf-8") as source_file:
             source_file.write("test")
 
     def tearDown(self):
+        os.chdir(self.original_cwd)
         self.tempdir.cleanup()
 
     def test_missing_source_and_occupied_destination_block_a_plan(self):
@@ -63,6 +68,33 @@ class TestRenamePlan(unittest.TestCase):
         self.assertEqual(loaded.digest, plan.digest)
         self.assertEqual(apply_plan(loaded), ())
         self.assertTrue(os.path.exists(self.destination))
+        with open("rename_log.txt", encoding="utf-8") as rename_log:
+            self.assertIn("1|", rename_log.read())
+
+    def test_apply_rolls_back_completed_operations_after_a_failure(self):
+        second_source = os.path.join(self.tempdir.name, "second-old.mp4")
+        second_destination = os.path.join(self.tempdir.name, "second-new.mp4")
+        with open(second_source, "w", encoding="utf-8") as second_file:
+            second_file.write("test")
+        plan = create_plan((
+            RenameOperation("1", self.source, self.destination),
+            RenameOperation("2", second_source, second_destination),
+        ))
+        real_link = os.link
+        calls = 0
+
+        def fail_second_claim(source, destination):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("simulated failure")
+            return real_link(source, destination)
+
+        with patch("rename_plan.os.link", side_effect=fail_second_claim):
+            issues = apply_plan(plan)
+        self.assertEqual(issues[0].code, "apply_failed")
+        self.assertTrue(os.path.exists(self.source))
+        self.assertFalse(os.path.exists(self.destination))
 
     def test_destination_outside_source_directory_is_blocked(self):
         plan = create_plan((RenameOperation("1", self.source, os.path.join(self.tempdir.name, "..", "outside.mp4")),))
