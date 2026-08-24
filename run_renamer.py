@@ -1,10 +1,14 @@
+import argparse
 import os
-import sys
 
 import config
 import db
 import logger
-from renamer import edit_db
+from planning import discover_operations
+from rename_plan import apply_plan, create_plan, read_plan, render_plan, validate_plan, write_plan
+
+
+PLAN_FILE = "renamer_plan.json"
 
 
 def _clear_dry_run_log() -> None:
@@ -41,67 +45,98 @@ def _claim_new_scene_ids(scene_ids: str, claimed_scene_ids: set[str]) -> list[st
     return new_scene_ids
 
 
-def _run_tag_pass(dict_section: dict[str, str], claimed_scene_ids: set[str]) -> list[str]:
-    """Rename the scenes uniquely claimed by one configured tag."""
+def _discover_tag_pass(dict_section: dict[str, str], claimed_scene_ids: set[str]) -> tuple[list[str], list]:
+    """Discover operations for the scenes uniquely claimed by one tag."""
     tag_id = db.gettingTagsID(dict_section.get("tag"))
     if tag_id is None:
-        return []
+        return [], []
 
     matching_scene_ids = db.get_SceneID_fromTags(tag_id)
     if not matching_scene_ids:
-        return []
+        return [], []
 
     scene_ids = _claim_new_scene_ids(matching_scene_ids, claimed_scene_ids)
     if not scene_ids:
-        return []
+        return [], []
 
     query, params = _build_scene_query(scene_ids, "IN")
-    edit_db(dict_section.get("filename"), query, params)
+    operations = discover_operations(dict_section.get("filename"), query, params)
     logger.logPrint("====================")
-    return scene_ids
+    return scene_ids, operations
 
 
-def _run_tag_passes() -> list[str]:
-    """Run configured tag passes in order and return their claimed scene IDs."""
+def _discover_tag_passes() -> tuple[list[str], list]:
+    """Discover tag operations in first-match order and return claimed IDs."""
     tagged_scene_ids = []
+    operations = []
     claimed_scene_ids = set()
     for dict_section in config.tags_dict.values():
-        tagged_scene_ids.extend(_run_tag_pass(dict_section, claimed_scene_ids))
-    return tagged_scene_ids
+        scene_ids, tag_operations = _discover_tag_pass(dict_section, claimed_scene_ids)
+        tagged_scene_ids.extend(scene_ids)
+        operations.extend(tag_operations)
+    return tagged_scene_ids, operations
 
 
-def _run_fallback_pass(tagged_scene_ids: list[str]) -> None:
-    """Rename scenes that were not claimed by a configured tag."""
+def _discover_fallback_pass(tagged_scene_ids: list[str]) -> list:
+    """Discover fallback operations for scenes not claimed by a tag."""
     if not config.FALLBACK_TEMPLATE:
-        return
+        return []
 
     if tagged_scene_ids:
         query, params = _build_scene_query(tagged_scene_ids, "NOT IN")
-        edit_db(config.FALLBACK_TEMPLATE, query, params)
+        operations = discover_operations(config.FALLBACK_TEMPLATE, query, params)
     elif config.PATH_FILTER:
-        edit_db(config.FALLBACK_TEMPLATE, "WHERE d.path LIKE ?", (config.PATH_FILTER,))
+        operations = discover_operations(config.FALLBACK_TEMPLATE, "WHERE d.path LIKE ?", (config.PATH_FILTER,))
     else:
-        edit_db(config.FALLBACK_TEMPLATE)
+        operations = discover_operations(config.FALLBACK_TEMPLATE)
     logger.logPrint("====================")
+    return operations
 
 
-def run() -> None:
-    """Run tag passes with first-match precedence, followed by the fallback."""
+def run(plan_path: str = PLAN_FILE) -> None:
+    """Create one validated plan, then render or apply that exact plan."""
+    config.validate()
     logger.logPrint("Database Path: {}".format(config.DB_PATH))
     _clear_dry_run_log()
 
     db.connect()
     try:
-        _run_fallback_pass(_run_tag_passes())
+        tagged_scene_ids, operations = _discover_tag_passes()
+        operations.extend(_discover_fallback_pass(tagged_scene_ids))
     finally:
         db.close()
+    plan = create_plan(operations)
+    issues = validate_plan(plan)
+    write_plan(plan, plan_path)
+    rendered = render_plan(plan, issues)
+    with open("renamer_dryrun.txt", "w", encoding="utf-8") as dry_run_log:
+        dry_run_log.write(rendered)
+    logger.logPrint(rendered.rstrip())
+    logger.logPrint("[PLAN] Wrote {}".format(plan_path))
+    # Planning never mutates files. A reviewed persisted plan requires the
+    # explicit --apply-plan command and DRY_RUN=False configuration.
+    return
 
 
-def main() -> None:
-    """Run the renamer and pause only for interactive command-line use."""
-    run()
-    if sys.stdin.isatty():
-        input("Press Enter to continue...")
+def main(argv: list[str] | None = None) -> None:
+    """Load configuration and either create a plan or apply a saved plan."""
+    parser = argparse.ArgumentParser(description="Safely plan or apply Stash file renames.")
+    parser.add_argument("--config", help="path to a private Python configuration file")
+    parser.add_argument("--apply-plan", metavar="PATH", help="apply a saved, digest-verified plan")
+    parser.add_argument("--plan-file", default=PLAN_FILE, help="destination for a newly discovered plan")
+    args = parser.parse_args(argv)
+    try:
+        config.load_local_config(args.config)
+        if args.apply_plan:
+            if config.DRY_RUN:
+                parser.error("refusing to apply a plan while DRY_RUN is enabled")
+            issues = apply_plan(read_plan(args.apply_plan))
+            if issues:
+                parser.error("plan is blocked or changed; regenerate and review it")
+            return
+        run(args.plan_file)
+    except ValueError as error:
+        parser.error(str(error))
 
 
 if __name__ == "__main__":

@@ -1,8 +1,10 @@
-# User configuration — edit this file to customise your setup.
-# No imports, no side effects.
+# Distributable defaults. Put personal values in config.local.py (ignored),
+# pass --config PATH, or set SQLITE_RENAMER_CONFIG. Local values override these.
+import os
+from pathlib import Path
 
-# Path to your Stash SQLite database
-DB_PATH = r"C:\Users\Winter\.stash\Full.sqlite"
+# Path to your Stash SQLite database. Required in local configuration.
+DB_PATH = ""
 
 # Write rename_log.txt so you can revert renames if needed
 USING_LOG = True
@@ -24,16 +26,43 @@ STOP_AFTER_FIRST = False
 # Personal tag-to-template mappings — change these to match your Stash tags
 # ---------------------------------------------------------------------------
 
-tags_dict = {
-    "1": {"tag": "!1. JAV", "filename": "$title"},
-    "2": {"tag": "!1. Anime", "filename": "$date $title"},
-    "3": {"tag": "!1. Western", "filename": "$date $performer - $title [$studio]"},
-}
+tags_dict = {}
 
 # Optional SQL LIKE filter applied to the folder path in the WHERE clause.
 # Set to "" to process all scenes regardless of path.
-PATH_FILTER = r"E:\Film\R18\%"
+PATH_FILTER = ""
 
 # Fallback filename template applied to scenes that do not match any tag in
 # tags_dict above.  Set to "" to skip the fallback pass entirely.
 FALLBACK_TEMPLATE = "$studio - $date - $performer - $title"
+
+
+def load_local_config(path: str | None = None) -> Path | None:
+    """Load assignment-only local configuration with explicit precedence.
+
+    ``--config`` takes precedence over ``SQLITE_RENAMER_CONFIG``, followed by
+    ``config.local.py`` next to this module. The local file is trusted user
+    configuration and may override only uppercase settings and ``tags_dict``.
+    """
+    candidate = path or os.environ.get("SQLITE_RENAMER_CONFIG")
+    config_path = Path(candidate) if candidate else Path(__file__).with_name("config.local.py")
+    if not config_path.is_file():
+        if path or os.environ.get("SQLITE_RENAMER_CONFIG"):
+            raise ValueError("configuration file does not exist: {}".format(config_path))
+        return None
+    namespace: dict[str, object] = {}
+    exec(compile(config_path.read_text(encoding="utf-8"), str(config_path), "exec"), namespace)
+    for name, value in namespace.items():
+        if name.isupper() or name == "tags_dict":
+            globals()[name] = value
+    return config_path
+
+
+def validate() -> None:
+    """Fail clearly before opening a database or planning any rename."""
+    if not isinstance(DB_PATH, str) or not DB_PATH.strip():
+        raise ValueError("DB_PATH is required; create config.local.py or pass --config PATH")
+    if not Path(DB_PATH).is_file():
+        raise ValueError("DB_PATH does not exist or is not a file: {}".format(DB_PATH))
+    if not isinstance(tags_dict, dict):
+        raise ValueError("tags_dict must be a dictionary")

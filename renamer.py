@@ -72,7 +72,7 @@ def makeFilename(scene_info, query):
     return new_filename
 
 
-def edit_db(query_filename, optional_query="", params=()):
+def _legacy_edit_db(query_filename, optional_query="", params=()):  # pragma: no cover
     """Rename scene files on disk according to a filename template.
 
     Fetches scenes from the Stash SQLite database (optionally filtered by
@@ -284,3 +284,22 @@ def edit_db(query_filename, optional_query="", params=()):
                 break
         progress.finish()
     return
+
+
+def edit_db(query_filename, optional_query="", params=()):
+    """Compatibility wrapper that uses the validated plan pipeline.
+
+    New callers should discover all tag and fallback operations together via
+    :mod:`run_renamer`; this wrapper keeps the historical function callable
+    without bypassing source, destination, or collision validation.
+    """
+    from planning import discover_operations
+    from rename_plan import apply_plan, create_plan, render_plan, validate_plan
+
+    plan = create_plan(discover_operations(query_filename, optional_query, params))
+    issues = validate_plan(plan)
+    with open("renamer_dryrun.txt", "a", encoding="utf-8") as dry_run_log:
+        dry_run_log.write(render_plan(plan, issues))
+    # Compatibility calls render a plan only. Filesystem mutation is available
+    # exclusively through ``run_renamer.py --apply-plan`` with DRY_RUN disabled.
+    return plan
