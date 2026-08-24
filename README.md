@@ -19,8 +19,8 @@ The SQLite database is read-only — the script never writes to it.
 ## Setup
 
 1. Back up your video files before a live run. Enable `USING_LOG` to write `rename_log.txt` as a rollback reference.
-2. Set `DB_PATH` in [`config.py`](config.py) to your `.sqlite` file path.
-3. Edit `tags_dict`, `FALLBACK_TEMPLATE`, and `PATH_FILTER` in [`config.py`](config.py) with your tags and filename templates.
+2. Copy [`config.local.example.py`](config.local.example.py) to `config.local.py` (ignored by Git), then set `DB_PATH`, `tags_dict`, `FALLBACK_TEMPLATE`, and `PATH_FILTER`.
+3. Alternatively, keep private configuration elsewhere and pass `--config /path/to/config.py`, or set `SQLITE_RENAMER_CONFIG`.
 4. Install the runtime dependency:
 
    ```bash
@@ -37,9 +37,9 @@ Run:
 python run_renamer.py
 ```
 
-This clears and recreates `renamer_dryrun.txt`, showing each proposed `old_path -> new_path` rename. Set `STOP_AFTER_FIRST = True` to limit each matching tag or fallback pass to one scene; a configuration with multiple matching passes can therefore produce multiple proposed renames.
+This writes `renamer_plan.json` and `renamer_dryrun.txt`. The dry run identifies ready, no-op, and blocked operations after checking source files, occupied destinations, directory containment, and collisions across the complete batch. Set `STOP_AFTER_FIRST = True` to limit each matching tag or fallback pass to one scene.
 
-For a live run, back up the files, review the dry-run output, then explicitly set `DRY_RUN = False` and run the same command again. A live run never writes to the SQLite database.
+For a live run, back up the files, review the dry-run output, then explicitly set `DRY_RUN = False` and run the same command again. To apply a reviewed plan explicitly, run `python run_renamer.py --apply-plan renamer_plan.json`; its digest and filesystem state are revalidated before any rename. A live run never writes to the SQLite database.
 
 ## Filename Templates
 
@@ -58,9 +58,9 @@ Notes:
 - Heights of 2160 and 4320 are shown as `4k` and `8k`; others as `<height>p` (e.g. `1080p`).
 - If a scene has more than 3 performers, `$performer` is omitted. This applies before the optional `FEMALE_ONLY` filter.
 
-## Configuration (`config.py`)
+## Configuration
 
-All behaviour is controlled by editing [`config.py`](config.py) — no other files need to be changed.
+[`config.py`](config.py) contains safe distributable defaults. Put personal settings in the ignored `config.local.py`, pass `--config PATH`, or set `SQLITE_RENAMER_CONFIG`; explicit `--config` has highest precedence.
 
 ### Tag-to-template mapping
 

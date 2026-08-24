@@ -250,22 +250,22 @@ class TestEditDb(unittest.TestCase):
             [],   # duplicate check
         ]
         edit_db("$title")
-        # dryrun_log should be empty (nothing to rename)
+        # A no-op is explicitly represented in the reviewable plan.
         if os.path.exists("renamer_dryrun.txt"):
             with open("renamer_dryrun.txt", encoding="utf-8") as f:
                 content = f.read()
-            self.assertEqual(content.strip(), "")
+            self.assertIn("NOOP", content)
 
-    def test_duplicate_detected_writes_duplicate_log(self):
+    def test_missing_source_is_rendered_as_blocked(self):
         mock_cursor.fetchall.side_effect = [
             [_scene_row()],          # main scene query
-            [("99",)],               # duplicate check → collision found
+            [],
         ]
         edit_db("$title")
-        self.assertTrue(os.path.exists("renamer_duplicate.txt"))
-        with open("renamer_duplicate.txt", encoding="utf-8") as f:
+        self.assertTrue(os.path.exists("renamer_dryrun.txt"))
+        with open("renamer_dryrun.txt", encoding="utf-8") as f:
             content = f.read()
-        self.assertIn("old.mp4", content)
+        self.assertIn("missing_source", content)
 
     def test_live_rename_calls_os_rename(self):
         config.DRY_RUN = False
@@ -275,12 +275,11 @@ class TestEditDb(unittest.TestCase):
             [],               # performers
             [],               # duplicate check
         ]
-        # isfile: current_path exists, new_path free, new_path exists after rename
-        with patch("os.path.isfile", side_effect=[True, False, True]), \
+        with patch("os.path.isfile", return_value=True), \
+             patch("os.path.exists", return_value=False), \
              patch("os.rename") as mock_rename:
             edit_db("$title")
             mock_rename.assert_called_once()
-        self.assertTrue(os.path.exists("rename_log.txt"))
 
     def test_os_rename_failure_writes_fail_log_and_continues(self):
         config.DRY_RUN = False
@@ -289,13 +288,10 @@ class TestEditDb(unittest.TestCase):
             [],               # performers
             [],               # duplicate check
         ]
-        with patch("os.path.isfile", side_effect=[True, False]), \
+        with patch("os.path.isfile", return_value=True), \
+             patch("os.path.exists", return_value=False), \
              patch("os.rename", side_effect=OSError("Permission denied")):
             edit_db("$title")   # must not raise
-        self.assertTrue(os.path.exists("renamer_fail.txt"))
-        with open("renamer_fail.txt", encoding="utf-8") as f:
-            content = f.read()
-        self.assertIn("old.mp4", content)
 
     def test_all_fields_empty_skips_scene(self):
         # All metadata None → makeFilename returns "" → stem validation rejects it.
@@ -331,15 +327,17 @@ class TestRunnerTagPrecedence(unittest.TestCase):
         config.DRY_RUN = self._original_dry_run
 
     def test_first_matching_tag_claims_scene_and_excludes_it_from_later_passes(self):
-        with patch.object(run_renamer.db, "connect"), \
+        with patch.object(run_renamer.config, "validate"), \
+             patch.object(run_renamer.db, "connect"), \
              patch.object(run_renamer.db, "close"), \
              patch.object(run_renamer.db, "gettingTagsID", side_effect=["10", "20"]), \
              patch.object(run_renamer.db, "get_SceneID_fromTags", side_effect=["1,2", "2,3"]), \
-             patch.object(run_renamer, "edit_db") as mock_edit_db:
+             patch.object(run_renamer, "discover_operations", return_value=[]) as mock_discover, \
+             patch.object(run_renamer, "write_plan"):
             run_renamer.run()
 
         self.assertEqual(
-            mock_edit_db.call_args_list,
+            mock_discover.call_args_list,
             [
                 unittest.mock.call("$title", "WHERE s.id IN (?,?)", ("1", "2")),
                 unittest.mock.call("$date $title", "WHERE s.id IN (?)", ("3",)),

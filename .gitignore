@@ -1,6 +1,7 @@
 # Stash database
 stash-go.sqlite
 *.sqlite
+config.local.py
 
 # Python
 __pycache__/
@@ -15,6 +16,7 @@ rename_log.txt
 renamer_dryrun.txt
 renamer_duplicate.txt
 renamer_fail.txt
+renamer_plan.json
 
 # Testing
 .pytest_cache/

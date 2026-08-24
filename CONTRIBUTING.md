@@ -4,7 +4,7 @@ Thanks for helping improve SQLite Renamer for Stash. This utility reads a Stash 
 
 ## Before opening a pull request
 
-- Keep behavior configurable through `config.py`; do not add personal database paths, tag names, or media-library details to committed files.
+- Keep behavior configurable through `config.py` defaults and ignored local configuration; do not add personal database paths, tag names, or media-library details to committed files.
 - Do not commit Stash databases, media files, rename logs, dry-run output, credentials, or private metadata.
 - Preserve the database read-only guarantee. The project must not issue `INSERT`, `UPDATE`, or `DELETE` statements against the Stash database.
 - Run a dry run before testing any filesystem-changing behavior.

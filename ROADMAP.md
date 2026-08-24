@@ -21,6 +21,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R0-1 — Make preview and apply consume one validated rename plan
 
+- **Status:** Completed 2026-08-23.
 - **Source:** `REL-001`, `ARCH-001`, `FEAT-001`
 - **Action:** Introduce a versioned rename-operation/plan model. Discover all operations first; validate source existence, destination occupancy, no-op identity, normalized duplicate destinations, and directory containment; render dry-run from that plan; apply only an unchanged valid plan.
 - **Reason / expected effect:** Restores dry run as a trustworthy safety gate and prevents foreseeable partial/conflicting batches.
@@ -31,6 +32,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R0-2 — Separate distributable configuration from private local state
 
+- **Status:** Completed 2026-08-23.
 - **Source:** `SEC-3`, `FEAT-003`
 - **Action:** Replace committed personal values with placeholders; add an ignored local configuration file and/or explicit `--config`/environment boundary; fail clearly when required configuration is absent; scrub current documentation examples without reproducing private values.
 - **Reason / expected effect:** Prevents repeated privacy disclosure and makes setup portable.
@@ -41,6 +43,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R0-3 — Complete Windows filename rules and normalization collision checks
 
+- **Status:** Implemented 2026-08-23; pending Windows-runtime verification.
 - **Source:** `BUG-001`, `TEST-002`
 - **Action:** Centralize filename sanitization/validation for control characters, reserved device basenames, trailing periods/spaces, existing punctuation policy, and post-normalization collisions.
 - **Reason / expected effect:** Turns predictable Windows rename failures into deterministic plan errors or safe normalized names.
@@ -248,9 +251,9 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 
 | ID | Initiative | Source Findings | Priority | Effort | Dependencies | Target Phase | Success Criteria |
 |---|---|---|---|---|---|---|---|
-| R0-1 | Authoritative validated plan/apply | `REL-001`, `ARCH-001`, `FEAT-001` | P0 | Medium | Current semantics regression tests | Phase 0 | Dry run and apply consume identical plan; all blocking conflicts detected before mutation |
-| R0-2 | Privacy-safe local configuration | `SEC-3`, `FEAT-003` | P0 | Medium | Configuration precedence decision | Phase 0 | No private defaults tracked; clean setup works; missing config fails clearly |
-| R0-3 | Complete Windows filename rules | `BUG-001`, `TEST-002` | P0 | Medium | Normalization policy | Phase 0 | Platform rule suite passes; normalization collisions block safely |
+| R0-1 | Authoritative validated plan/apply | `REL-001`, `ARCH-001`, `FEAT-001` | Complete | Medium | Current semantics regression tests | Phase 0 | Dry run and apply consume identical plan; all blocking conflicts detected before mutation |
+| R0-2 | Privacy-safe local configuration | `SEC-3`, `FEAT-003` | Complete | Medium | Configuration precedence decision | Phase 0 | No private defaults tracked; clean setup works; missing config fails clearly |
+| R0-3 | Complete Windows filename rules | `BUG-001`, `TEST-002` | Verification pending | Medium | Normalization policy | Phase 0 | Platform rule suite passes; normalization collisions block safely |
 | R1-1 | SQLite/filesystem integration fixture | `TEST-002`, `REL-001` | P1 | Medium | Plan interface | Phase 1 | Real queries and multi-file/collision paths pass in CI |
 | R1-2 | Versioned run manifest | `REL-002`, `FEAT-001` | P1 | Medium | R0-1 | Phase 1 | Every run has attributable operation states and completion marker |
 | R2-1 | Explicit planner/executor/DB boundaries | `ARCH-001` | P2 | Medium | R0-1, R1-1 | Phase 2 | No global cursor required by tests; behavior unchanged |
