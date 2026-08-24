@@ -27,7 +27,7 @@ The project is mature enough for careful personal use with backups and reviewed 
 | Comparison range | `5d8b291..dd22a7145af151ee78a2aa0e1315df99b1044483` |
 | Runtime used | macOS; Python 3.14.7; isolated virtual environment under `/private/tmp` |
 
-Available capabilities included read/write repository access, shell, Git, authenticated read-only GitHub API access through `gh`, network research, Python/venv/pip, pytest/coverage after isolated installation, GitHub-hosted CodeQL results, and a dedicated local security-scan workflow. Local Ruff, mypy, Bandit, Semgrep, `pip-audit`, actionlint, and a local CodeQL CLI were unavailable. Independent security-review workers were unavailable under this session's delegation policy. A Windows runtime, a privacy-safe Stash fixture, a live Stash database, media fixtures, and repository social-preview/settings UI access were also unavailable.
+Available capabilities included read/write repository access, shell, Git, authenticated read-only GitHub API access through `gh`, network research, Python/venv/pip, pytest/coverage, GitHub-hosted CodeQL results, and a dedicated local security-scan workflow. Follow-up validation used the ignored repository `.venv` and installed Ruff, mypy, Bandit, Semgrep, `pip-audit`, Actionlint, and yamllint without modifying dependency manifests. A local CodeQL CLI remained unavailable, but GitHub-hosted CodeQL succeeded. Independent security-review workers were unavailable under this session's delegation policy. A Windows runtime, a privacy-safe Stash fixture, a live Stash database, media fixtures, and repository social-preview/settings UI access were also unavailable.
 
 ## Audit Lineage Summary
 
@@ -38,7 +38,7 @@ Since the prior revision, the repository added GPL-3.0-or-later licensing, stron
 Lifecycle counts for active or historically significant items in this re-audit are:
 
 - New: 7 (`REL-001`, `TEST-001`, `TEST-002`, `DOC-001`, `DOC-002`, `DX-001`, `GH-001`)
-- Persistent or superseding persistent historical work: 6 (`BUG-001`, `SEC-3`, `REL-002`, `ARCH-001`, `PERF-001`, `GH-002`)
+- Persistent or superseding persistent historical work: 7 (`BUG-001`, `SEC-3`, `REL-002`, `ARCH-001`, `PERF-001`, `DX-002`, `GH-002`)
 - Resolved or obsolete historical items: 16
 - Regressed or reopened: 0
 - Unable to re-verify: 0 material historical defects; platform behavior is explicitly limited where no Windows runtime was available
@@ -112,14 +112,23 @@ There are no generated sources, migrations owned by this project, package metada
 | GitHub CodeQL | Default setup, Actions and Python | Passed | Current analyses succeeded; no open code-scanning alerts observed |
 | Dependabot/secret alerts | GitHub APIs | Passed | No open Dependabot, code-scanning, or secret-scanning alerts observed |
 | CodeFactor | Latest merged PR #11 status | Passed | External quality check succeeded |
-| Local lint/type checks | Ruff/mypy unavailable | Unavailable | No repository-provided lint or type-check configuration |
-| Local dependency vulnerability audit | `pip-audit` unavailable | Unavailable | GitHub Dependabot reported no open alerts; this is not equivalent to a local full audit |
+| Core Python lint | `.venv/bin/ruff check --isolated --select E4,E7,E9,F config.py db.py logger.py renamer.py run_renamer.py tests` | Passed | No core syntax/import/undefined-name errors |
+| Unconfigured broad Python lint | `.venv/bin/ruff check config.py db.py logger.py renamer.py run_renamer.py tests` | Failed baseline | 32 maintenance findings: 30 `.format()` modernization suggestions and two unnecessary `global` declarations; no repository Ruff configuration exists |
+| Python formatting | `.venv/bin/ruff format --isolated --check config.py db.py logger.py renamer.py run_renamer.py tests` | Failed baseline | Four of seven files would be reformatted; no repository formatter policy exists |
+| Type checking | `.venv/bin/mypy config.py db.py logger.py renamer.py run_renamer.py` | Failed baseline | One error: `claimed_scene_ids` needs an explicit set element type in `run_renamer.py:67` |
+| Python security lint | `.venv/bin/bandit -q -r config.py db.py logger.py renamer.py run_renamer.py` | Passed | No Bandit findings |
+| Semgrep | `.venv/bin/semgrep scan --config p/python --config p/security-audit --metrics off --disable-version-check ...` | Passed | 200 rules ran across 21 tracked files; zero findings and zero scan errors |
+| Dependency vulnerability audit | `.venv/bin/pip-audit -r requirements.txt`; repeated for `requirements-dev.txt` | Passed | No known vulnerabilities in either declared dependency set on the audit date |
+| Actions validation | `.venv/bin/actionlint .github/workflows/*.yml` | Passed | Workflow syntax and expressions accepted |
+| YAML lint | `.venv/bin/yamllint .github` | Failed default style; Passed adjusted syntax/style | Default policy reported two long issue-template lines plus document-start/truthy warnings; a GitHub-aware invocation disabling those non-project policies passed |
 | Real SQLite/media integration | No privacy-safe fixture supplied | Skipped | Needed to validate current Stash schema behavior and filesystem application end to end |
 | Windows runtime | No Windows environment available | Skipped | Static filename evidence only for `BUG-001` |
 | Build/package | No package build definition | Not applicable | Project runs directly from source |
 | UI/E2E/accessibility | No UI | Not applicable | CLI/output usability reviewed statically |
 
 The isolated install selected current compatible releases: `progressbar2` 4.6.0, pytest 9.1.1, and pytest-cov 7.1.0. Current releases and licenses were checked against [PyPI progressbar2](https://pypi.org/project/progressbar2/), [PyPI pytest](https://pypi.org/project/pytest/), and [PyPI pytest-cov](https://pypi.org/project/pytest-cov/). This confirms reproducibility on the audit date, not indefinite future reproducibility without a lock or constraints file.
+
+Follow-up tool versions in the ignored `.venv` were Ruff 0.16.4, mypy 2.3.1, Bandit 1.9.4, pip-audit 2.10.1, Semgrep 1.174.0, Actionlint 1.7.12, and yamllint 1.38.0. These were audit-environment additions only and were not added to project manifests.
 
 ## Existing Issue Verification
 
@@ -153,7 +162,7 @@ The isolated install selected current compatible releases: `progressbar2` 4.6.0,
 | CI-1 missing timeout | `AUDIT.md` | Persistent optional hardening | Confirmed | Workflow inspected | Low | Add during CI cleanup (`DX-001`) |
 | CI-3 Python 3.10 | `AUDIT.md` | Obsolete | Supported range is now 3.12–3.14 | README and CI agree | No | No action |
 | ADD-1 test/log refactor | `AUDIT.md` | Resolved | Implemented | Tests and history inspected | No | No action |
-| ADD-2 Ruff/mypy | `AUDIT.md` | Deferred | Not configured | Repository inventory | Optional | Adopt only with a focused cleanup baseline |
+| ADD-2 Ruff/mypy | `AUDIT.md` | Persistent; tracked as `DX-002` | Confirmed configuration gap | Tools run from ignored `.venv`; core Ruff rules pass, broad Ruff/format and default mypy do not | Yes, low priority | Define a narrow repository-owned baseline before cleanup |
 | ADD-3 DBHandle | `AUDIT.md` | Persistent; part of `ARCH-001` | Confirmed opportunity | Global state inspected | Yes | Sequence after plan extraction |
 | ADD-4 filename sanitizer | `AUDIT.md` | Persistent; `BUG-001` | Confirmed statically | See finding | Yes | Phase 0 roadmap |
 | ADD-5 batching | `AUDIT.md` | Persistent; `PERF-001` | Unmeasured | See finding | Verification first | Benchmark |
@@ -174,6 +183,7 @@ The isolated install selected current compatible releases: `progressbar2` 4.6.0,
 | SEC-5 / DOC-2 | Open | Resolved | GPL-3.0-or-later license added | `LICENSE`, README |
 | DOC-5 | Open | Resolved | Empty backlog removed | Current tree/history |
 | CI-2 / SEC-6 | Open | Persistent as `GH-002` | Actions upgraded but remain tag-pinned | Workflow and repository Actions policy |
+| ADD-2 | Deferred | Persistent as `DX-002` | Tools now run; repository-owned policy is still absent | Ruff, formatter, mypy, Actionlint, and yamllint results |
 | First-match precedence | Incorrect reconciliation claim, then fixed | Resolved | Ordered claiming implemented and tested | Baseline merge commit/PR #11 |
 
 No historical finding was reopened or regressed.
@@ -279,6 +289,15 @@ No historical finding was reopened or regressed.
 - **Remediation:** Run `push` only for `main` (or use PR checks for feature branches), retain the PR trigger, and add an appropriate job timeout. Verify check-name stability before editing protection rules.
 - **Confidence / disposition:** High; Scheduled (`R2-3`)
 
+#### DX-002 — Static-analysis and formatting behavior is not defined by the repository
+
+- **Category / lifecycle / validation:** Developer experience/maintainability; Persistent, superseding ADD-2; Validated configuration gap
+- **Affected components:** Repository tooling configuration, `run_renamer.py:67`, four currently unformatted Python files
+- **Evidence:** Core isolated Ruff rules (`E4`, `E7`, `E9`, `F`) pass. An unconstrained Ruff run reports 32 modernization/maintenance items, Ruff formatting would change four of seven Python files, and default mypy reports one missing set element annotation. Actionlint passes. Default yamllint reports GitHub-schema/style-policy noise, while a GitHub-aware adjusted invocation passes. No repository Ruff, formatter, mypy, or yamllint policy defines which result is authoritative.
+- **Impact:** Contributors cannot reproduce one stable local quality gate, and future tool defaults can create unrelated cleanup churn. No runtime defect or security vulnerability was demonstrated.
+- **Remediation:** Select a deliberately small Ruff/format/mypy/YAML baseline, record versions or compatible constraints, fix that baseline in a focused mechanical change, document one command, and add CI only after it is clean. Keep modernization rules separate from correctness rules.
+- **Confidence / disposition:** High; Scheduled (`R2-7`)
+
 #### GH-001 — CodeQL succeeds but is not a required merge check
 
 - **Category / lifecycle / validation:** GitHub administration; New; Validated configuration gap
@@ -326,7 +345,7 @@ No historical finding was reopened or regressed.
 
 ### Risks Requiring Verification
 
-- Dependency vulnerability posture was checked through current GitHub Dependabot state, but local `pip-audit` was unavailable.
+- Declared runtime and development requirements had no known vulnerabilities in `pip-audit` on 2026-08-23/24, and GitHub Dependabot had no open alerts. Both are time-sensitive results and should be repeated before release.
 - Real compatibility with the current Stash schema needs a privacy-safe integration fixture. Stash's current [architecture documentation](https://github.com/stashapp/stash/blob/develop/docs/ARCHITECTURE.md) confirms SQLite/WAL and migration-driven persistence, but this audit did not open a real user database.
 - Historical Git privacy cleanup may be unnecessary or disproportionately disruptive because the exposed values are not credentials. The maintainer must decide sensitivity before any rewrite.
 
@@ -344,6 +363,7 @@ No historical finding was reopened or regressed.
 - The utility has no network, authentication, authorization, shell-command, deserialization, update, or server attack surface.
 - Live renaming is opt-in and destination existence is checked before `os.rename`.
 - GitHub has private vulnerability reporting, secret scanning, push protection, Dependabot security updates, least-privilege workflow `contents: read`, and successful default CodeQL setup.
+- Supplementary Bandit and Semgrep scans reported no findings; Semgrep ran 200 Python/security-audit rules over 21 tracked files with no scan errors.
 - `SECURITY.md` clearly scopes reporting and asks reporters not to share real databases/media/private paths.
 
 ## Reliability Assessment
@@ -397,6 +417,8 @@ The 44 tests are fast, deterministic, and cover filename rendering, DB helpers, 
 
 Qualitative gaps are more important than the nominal 79–81% distinction: no real SQLite query is executed, no full plan is validated, no multi-file-scene regression exists, no Windows runtime is exercised, and entry-point coverage is omitted. Failure-path coverage should be extended to missing sources, pre-existing destinations in preview, same-target plan collisions, interruption/partial results, reserved names, and manifest replay/undo. Coverage should measure all production modules after those behaviors are added.
 
+The newly available local tools sharpen the maintenance baseline: core Ruff correctness rules, Bandit, Actionlint, Semgrep, and both dependency audits pass. Broader Ruff/format, default mypy, and default yamllint do not all pass because the repository has no owned policy and contains a small amount of style/type debt (`DX-002`). These failures should not be conflated with the validated reliability findings.
+
 ## Accessibility and UX Assessment
 
 There is no graphical interface, so screen-reader, focus, touch, contrast, and motion review do not apply. CLI usability is documentation- and output-driven. Current strengths include a safe default, progress indication, explicit logs, and clear README warnings. Current weaknesses are that the dry-run label overstates what was checked, output is split across files without a run identity, and missing tag names are reported piecemeal rather than summarized. A future plan command should end with explicit counts for ready, no-op, blocked, conflicting, and missing-source operations and refuse apply when blocking conflicts exist.
@@ -407,7 +429,7 @@ There is no graphical interface, so screen-reader, focus, touch, contrast, and m
 |---|---|---|---|
 | `README.md` | Mostly accurate | Bare stale forum link; preview limitations not disclosed; tracked-config workflow creates privacy risk | Update after planner/config changes; label historical link |
 | `AUDIT.md` | Useful historical snapshot, stale as current guidance | Root-level competition, stale reconciliation, private context | Archive intact enough for lineage, remove current-authority implication |
-| `CONTRIBUTING.md` | Accurate, concise | Will need new integration/plan validation commands | Keep; update with implementation work |
+| `CONTRIBUTING.md` | Accurate, concise | Will need new integration/plan and repository-owned quality commands | Keep; update with implementation work |
 | `SECURITY.md` | Accurate | No material gap for current maturity | Keep |
 | `LICENSE` | Accurate GPL version 3 or later | None found | Keep |
 | `CLAUDE.md` | Mostly accurate | Contains user-local default and will drift with architecture | Replace private default and update after config/planner work |
@@ -494,16 +516,17 @@ The best alternative direction is to become a Stash-native renaming planner rath
 4. Add a real SQLite/filesystem fixture with multi-file and collision scenarios (`TEST-002`).
 5. Add run-scoped, resumable manifests (`REL-002`, enabling `FEAT-002`).
 6. Include the runner in coverage and restore the 80% complete-source gate (`TEST-001`).
-7. Remove duplicated CI executions and require stable CodeQL checks (`DX-001`, `GH-001`).
-8. Apply Actions supply-chain hardening (`GH-002`).
-9. Consolidate current/historical docs and replace the stale homepage (`DOC-001`, `DOC-002`).
-10. Benchmark before taking performance work (`PERF-001`).
+7. Define a narrow, reproducible local quality baseline before applying formatting/modernization cleanup (`DX-002`).
+8. Remove duplicated CI executions and require stable CodeQL checks (`DX-001`, `GH-001`).
+9. Apply Actions supply-chain hardening (`GH-002`).
+10. Consolidate current/historical docs and replace the stale homepage (`DOC-001`, `DOC-002`).
+11. Benchmark before taking performance work (`PERF-001`).
 
 ## Limitations
 
 - No real Stash database or media library was accessed; schema/filesystem integration remains unverified.
 - Windows-specific behavior was inspected statically but not executed on Windows.
-- Local lint, type-check, dependency-vulnerability, and standalone CodeQL tools were unavailable. GitHub-hosted results partially cover but do not replace all of these checks.
+- A standalone local CodeQL CLI remained unavailable; GitHub-hosted CodeQL covered the current branch. Supplementary Python/YAML tools were installed only into the ignored `.venv`, not declared as reproducible project dependencies.
 - The security workflow was sequential because independent delegated reviewers were unavailable; its artifact contract was valid, but no second independent interpretation was obtained.
 - GitHub Projects were inaccessible without `read:project`; social preview and some UI-only administrative presentation settings require manual inspection.
 - No representative large-library performance fixture was available, so performance observations are not measured defects.

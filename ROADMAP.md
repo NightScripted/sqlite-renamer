@@ -11,7 +11,7 @@ The roadmap preserves the utility's strongest constraints: read the Stash databa
 This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit:
 
 - Completed: parameterized scene selection, runner/tag-precedence refactor and tests, GPL licensing, contribution/security guidance, dependency automation, Python 3.12–3.14 CI, and removal of the empty backlog.
-- Persistent and carried forward: Windows filename handling (`BUG-001`), log/run identity (`REL-002`), planner/executor separation (`ARCH-001`), privacy-safe configuration (`SEC-3`), action pinning (`GH-002`), and benchmark-first performance review (`PERF-001`).
+- Persistent and carried forward: Windows filename handling (`BUG-001`), log/run identity (`REL-002`), planner/executor separation (`ARCH-001`), privacy-safe configuration (`SEC-3`), repository-owned quality tooling (`DX-002`), action pinning (`GH-002`), and benchmark-first performance review (`PERF-001`).
 - Newly added: authoritative plan validation (`REL-001`/`FEAT-001`), complete-source coverage (`TEST-001`), SQLite/platform integration (`TEST-002`), stale external homepage (`DOC-002`), duplicated PR CI (`DX-001`), and required CodeQL governance (`GH-001`).
 - Reprioritized: undo follows a structured manifest; packaging/releases follow safety and configuration stabilization; performance optimization follows measurement.
 - Removed from committed work: the obsolete empty-bracket, 1440p-label, future-token, Python 3.10, and provenance concerns.
@@ -133,6 +133,16 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 - **Rollback/recovery:** Move/archive changes are recoverable through Git; retain history and redirect/link from current docs.
 - **Authority:** Separate documentation task. Changing GitHub homepage is a separate manual administrative action (`G2`).
 
+### R2-7 — Define and adopt a reproducible quality-tool baseline
+
+- **Source:** `DX-002`
+- **Action:** Choose a deliberately scoped Ruff lint/format, mypy, and GitHub-aware YAML policy; record compatible tool versions or constraints; fix the resulting baseline in a mechanical change; document one local command; add CI only after it passes.
+- **Reason / expected effect:** Converts tool-default-dependent results into a stable contributor contract without mixing broad modernization with correctness work.
+- **Preconditions / risk:** Agree on rule scope and supported Python versions. Enabling every current default would create noisy churn and obscure functional diffs.
+- **Validation:** Core lint, format check, mypy, Actionlint, and configured YAML lint pass locally and in CI; the existing tests remain green; a deliberately invalid fixture or test branch demonstrates each gate can fail.
+- **Rollback/recovery:** Land configuration/formatting separately from functional changes; revert the CI gate first if a tool upgrade unexpectedly blocks work, while preserving the reviewed configuration for diagnosis.
+- **Authority:** Separate tooling/code task; workflow changes require explicit approval but no GitHub administrative access unless made required.
+
 ## Phase 3: Product Improvements
 
 ### R3-1 — Add safe undo from completed manifests
@@ -184,10 +194,11 @@ No strategic expansion is committed. If exploration validates it, `FEAT-005` cou
 2. With `R0-2`, replace tracked personal examples and document configuration precedence/migration (`SEC-3`, `FEAT-003`).
 3. With `R0-3`/`R1-1`, document exact supported-platform filename behavior and test commands (`BUG-001`, `TEST-002`).
 4. With `R1-2`, document manifest format, retention, interruption, recovery, and privacy (`REL-002`).
-5. Execute `R2-6`: move the historical audit to `docs/audits/`, update cross-links, label the forum thread, and keep `ANALYSIS.md`/`ROADMAP.md` canonical.
-6. Create `docs/design/rename-plan.md` with the stable plan contract; avoid duplicating README usage instructions.
-7. Create `CHANGELOG.md`, release/testing documentation, and install examples only when `R3-2` begins.
-8. Add screenshots/demo media only if a UI or concise sanitized CLI demonstration materially improves evaluation; never use real library paths/data.
+5. With `R2-7`, document the repository-owned lint, format, type, and YAML commands and their supported tool constraints (`DX-002`).
+6. Execute `R2-6`: move the historical audit to `docs/audits/`, update cross-links, label the forum thread, and keep `ANALYSIS.md`/`ROADMAP.md` canonical.
+7. Create `docs/design/rename-plan.md` with the stable plan contract; avoid duplicating README usage instructions.
+8. Create `CHANGELOG.md`, release/testing documentation, and install examples only when `R3-2` begins.
+9. Add screenshots/demo media only if a UI or concise sanitized CLI demonstration materially improves evaluation; never use real library paths/data.
 
 Every documentation mutation above is a separate reviewed Git change. The validation is a current-code comparison, setup walkthrough, link check, and private-path/secret scan; rollback is a normal Git revert. Historical documents should be archived, not silently deleted.
 
@@ -201,6 +212,7 @@ Every documentation mutation above is a separate reviewed Git change. The valida
 | G4 (`GH-002`) | Restrict actions and require full SHAs after pinning | Supply-chain defense in depth | Inventory/pin/test all actions and Dependabot updates | CI outage; restore prior policy | Workflow change and manual admin + explicit approval |
 | G5 (`FEAT-004`) | Publish first tag/release only after safety milestones | Stable, evaluable distribution | Release checklist and clean multi-platform validation | Bad immutable release; deprecate, do not replace | Explicit tag/release approval |
 | G6 (community need) | Add Code of Conduct only if contributor growth warrants it | Complete contributor expectations | Maintainer selects policy and enforcement contact | Policy without operational ownership; revert | Human policy choice |
+| G7 (`DX-002`) | Add configured quality checks to CI after the local baseline passes | Make contributor validation reproducible | Pin/constraint tools, clean local run, and test a deliberate failure | Tool upgrade blocks PRs; revert workflow gate while diagnosing | Workflow change approval; admin approval only if made required |
 
 Issue/PR templates, contribution/security guidance, Dependabot, secret scanning/push protection, private vulnerability reporting, and current branch protection should be kept. Projects require a manual review with a token that has `read:project`; no change is recommended without that inspection. Wiki and Discussions should remain disabled until demand exists. No GitHub mutation occurred during this audit.
 
@@ -247,6 +259,7 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 | R2-4 | Actions policy hardening | `GH-002` | P2 | Small | Reviewed SHAs/update automation | Phase 2 | All workflows pass under restricted SHA policy |
 | R2-5 | Performance benchmark | `PERF-001` | P3 | Small | Stable fixture/planner | Phase 2 | Repeatable size/query/time/memory baseline and decision threshold |
 | R2-6 | Documentation consolidation | `DOC-001`, `DOC-002`, `SEC-3` | P2 | Small | Behavior/config changes | Phase 2 | One current tracker; history archived; no stale/private setup guidance |
+| R2-7 | Reproducible quality-tool baseline | `DX-002` | P2 | Small | Rule/version policy | Phase 2 | Configured lint, format, type, Actions, and YAML checks pass locally and in CI |
 | R3-1 | Manifest-based safe undo | `FEAT-002`, `REL-002` | P3 | Medium | R0-1, R1-2 | Phase 3 | Apply/undo round trip and conflict refusal verified |
 | R3-2 | First package/release | `FEAT-004` | P3 | Medium | Phases 0–1 | Phase 3 | Clean supported-platform install and approved immutable release |
 | X-1 | Evaluate Stash API/plugin mode | `FEAT-005` | Exploratory | Medium/High | User/API research | Exploratory/Phase 4 | Evidence supports value and preserves safety invariants before promotion |
@@ -257,6 +270,7 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 - Integration tests cover multiple files per scene, missing sources, existing destinations, destination collisions, and interruption states.
 - Windows filename rule tests pass on a Windows job or equivalent verified platform runner.
 - All five production modules are included in the coverage report and maintain at least 80% coverage.
+- Repository-owned lint, formatting, type, Actions, and YAML checks are versioned, documented, and green without relying on changing tool defaults.
 - Every live run has a unique versioned manifest and explicit completed/partial/failed status.
 - No user-specific path or private media example is tracked in current distributable configuration/documentation.
 - A pull request produces one Python matrix, required Python/CodeQL checks are reliable, and main remains protected.
@@ -273,10 +287,11 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 5. **R1-2:** Persist versioned run state and simulate interruption. Do not build undo until completion semantics are trustworthy.
 6. **R2-1:** Finish the incremental architecture split using the fixture as protection. Confirm no user-visible behavior change.
 7. **R2-2:** Include the runner in coverage and restore the truthful ≥80% gate across all supported Python versions.
-8. **R2-3:** Remove duplicate CI runs, add timeout, verify check identities, and only then update branch protection for CodeQL.
-9. **R2-4:** Pin and restrict Actions in a tested change before enforcing repository policy.
-10. **R2-6:** Reconcile README/contributor/agent guidance with landed behavior, archive the prior audit, and update homepage metadata through separate approval.
-11. **R2-5:** Benchmark stabilized planning. Optimize only if agreed thresholds fail.
-12. **R3-1:** Implement conflict-aware undo from completed manifests and verify round trips.
-13. **R3-2:** Prepare packaging and a release candidate; publish/tag only after explicit approval and clean matrix/security checks.
-14. **X-1:** Separately validate Stash API/plugin demand and constraints; promote only with evidence.
+8. **R2-7:** Select and record a narrow quality-tool policy, apply any mechanical baseline separately, then add the green checks to CI.
+9. **R2-3:** Remove duplicate CI runs, add timeout, verify check identities, and only then update branch protection for CodeQL.
+10. **R2-4:** Pin and restrict Actions in a tested change before enforcing repository policy.
+11. **R2-6:** Reconcile README/contributor/agent guidance with landed behavior, archive the prior audit, and update homepage metadata through separate approval.
+12. **R2-5:** Benchmark stabilized planning. Optimize only if agreed thresholds fail.
+13. **R3-1:** Implement conflict-aware undo from completed manifests and verify round trips.
+14. **R3-2:** Prepare packaging and a release candidate; publish/tag only after explicit approval and clean matrix/security checks.
+15. **X-1:** Separately validate Stash API/plugin demand and constraints; promote only with evidence.
