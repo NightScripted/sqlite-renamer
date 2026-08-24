@@ -1,6 +1,7 @@
 """
 Tests for makeFilename() in renamer.py.
 """
+
 import unittest
 
 from renamer import makeFilename
@@ -15,7 +16,6 @@ FULL_INFO = {
 
 
 class TestMakeFilename(unittest.TestCase):
-
     def test_all_variables(self):
         result = makeFilename(FULL_INFO, "$date $performer - $title [$studio]")
         self.assertEqual(result, "2016-12-29 Eva Lovia - Her Fantasy Ball [Sneaky Sex]")

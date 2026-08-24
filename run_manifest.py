@@ -1,4 +1,5 @@
 """Versioned, atomically written records for plan and apply runs."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -11,7 +12,9 @@ from rename_plan import RenamePlan, PlanIssue
 MANIFEST_VERSION = 1
 
 
-def write_manifest(plan: RenamePlan, issues: tuple[PlanIssue, ...], state: str, directory: str = "renamer_runs") -> Path:
+def write_manifest(
+    plan: RenamePlan, issues: tuple[PlanIssue, ...], state: str, directory: str = "renamer_runs"
+) -> Path:
     """Write one self-contained run record without exposing partial JSON."""
     run_id = str(uuid4())
     target_directory = Path(directory)
@@ -22,7 +25,10 @@ def write_manifest(plan: RenamePlan, issues: tuple[PlanIssue, ...], state: str, 
             "scene_id": operation.scene_id,
             "source": operation.source,
             "destination": operation.destination,
-            "result": issue_keys.get((operation.scene_id, operation.destination), "noop" if operation.source == operation.destination else state),
+            "result": issue_keys.get(
+                (operation.scene_id, operation.destination),
+                "noop" if operation.source == operation.destination else state,
+            ),
         }
         for operation in plan.operations
     ]

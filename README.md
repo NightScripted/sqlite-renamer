@@ -1,6 +1,6 @@
 # SQLite Renamer for Stash
 
-https://discourse.stashapp.cc/t/sqlite-renamer-for-stash/1476
+Historical community discussion: <https://discourse.stashapp.cc/t/sqlite-renamer-for-stash/1476>. It describes an earlier version; this repository's documentation is authoritative.
 
 Uses metadata from your [Stash](https://github.com/stashapp/stash) SQLite database to rename your video files on disk.
 
@@ -13,7 +13,6 @@ The SQLite database is read-only — the script never writes to it.
 
 ## Requirements
 - Python 3.12–3.14 (the versions covered by CI)
-- `progressbar2` (`python -m pip install -r requirements.txt`) — imports as `progressbar`
 - A [Stash](https://github.com/stashapp/stash) database (`.sqlite` file)
 
 ## Setup
@@ -54,7 +53,6 @@ Available variables: `$date` `$performer` `$title` `$studio` `$height`
 
 Notes:
 - Illegal Windows filename characters are stripped automatically. `#` and `,` are also stripped even though they are legal on Windows — edit the character-stripping regex in the script to preserve them.
-- If the full path exceeds 240 characters, the script falls back to `$date - $title` (or `$title` alone if no date is available).
 - Heights of 2160 and 4320 are shown as `4k` and `8k`; others as `<height>p` (e.g. `1080p`).
 - If a scene has more than 3 performers, `$performer` is omitted. This applies before the optional `FEMALE_ONLY` filter.
 
@@ -118,6 +116,22 @@ python -m pytest tests/ -v --cov=. --cov-report=term-missing --cov-fail-under=80
 ```
 
 GitHub Actions runs this check on Python 3.12, 3.13, and 3.14. Dependabot checks Python packages weekly and GitHub Actions monthly.
+
+The repository also has a deliberately small, reproducible quality baseline:
+
+```bash
+python -m ruff check .
+python -m ruff format --check --exclude README.md .
+python -m mypy
+python -m yamllint .github .yamllint.yml
+actionlint -color .github/workflows/ci.yml
+```
+
+`requirements-dev.txt` pins Ruff, mypy, and yamllint. Install Actionlint v1.7.12 from its release page or with your package manager; CI installs that exact version with `go install`.
+
+## Performance baseline
+
+Run `python benchmarks/benchmark_planning.py --sizes 100,1000` to measure planning time, SQL statement count, and peak Python allocation using invented SQLite data only. See [`benchmarks/README.md`](benchmarks/README.md) for the current baseline and interpretation.
 
 ## License
 

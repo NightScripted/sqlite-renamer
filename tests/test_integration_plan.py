@@ -1,17 +1,17 @@
-"""Mocked database and temporary-filesystem integration coverage."""
+"""Privacy-safe SQLite and temporary-filesystem integration coverage."""
+
 import os
+import sqlite3
 import tempfile
 import unittest
-from unittest.mock import MagicMock, patch
 
 import config
-import db
 import run_renamer
 from rename_plan import read_plan
 
 
 class TestPlanIntegration(unittest.TestCase):
-    """Exercise multi-file planning and application without a writable database."""
+    """Exercise real supported-schema queries, planning, and application."""
 
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
@@ -19,39 +19,62 @@ class TestPlanIntegration(unittest.TestCase):
         os.chdir(self.tempdir.name)
         self.original_values = {
             name: getattr(config, name)
-            for name in ("DB_PATH", "DRY_RUN", "USING_LOG", "PATH_FILTER", "FALLBACK_TEMPLATE", "tags_dict")
+            for name in (
+                "DB_PATH",
+                "DRY_RUN",
+                "USING_LOG",
+                "PATH_FILTER",
+                "FALLBACK_TEMPLATE",
+                "tags_dict",
+            )
         }
         self.media_directory = os.path.join(self.tempdir.name, "media")
         os.mkdir(self.media_directory)
-        config.DB_PATH = __file__
+        database_path = os.path.join(self.tempdir.name, "fixture.sqlite")
+        self._write_fixture(database_path)
+        config.DB_PATH = database_path
         config.DRY_RUN = True
         config.USING_LOG = False
         config.PATH_FILTER = ""
         config.FALLBACK_TEMPLATE = "$title"
         config.tags_dict = {}
-        self.cursor = MagicMock()
-        self.cursor.fetchall.return_value = [
-            (1, "one.mp4", self.media_directory, "Fixture Title", "2026-01-01", None, 1080),
-            (1, "two.mkv", self.media_directory, "Fixture Title", "2026-01-01", None, 2160),
-        ]
-        self.database_patches = [
-            patch.object(db, "connect"),
-            patch.object(db, "close"),
-            patch.object(db, "cursor", self.cursor),
-        ]
-        for database_patch in self.database_patches:
-            database_patch.start()
         for basename in ("one.mp4", "two.mkv"):
-            with open(os.path.join(self.media_directory, basename), "w", encoding="utf-8") as media_file:
+            with open(
+                os.path.join(self.media_directory, basename), "w", encoding="utf-8"
+            ) as media_file:
                 media_file.write("fixture")
 
     def tearDown(self):
-        for database_patch in reversed(self.database_patches):
-            database_patch.stop()
         for name, value in self.original_values.items():
             setattr(config, name, value)
         os.chdir(self.original_cwd)
         self.tempdir.cleanup()
+
+    def _write_fixture(self, database_path):
+        connection = sqlite3.connect(database_path)
+        connection.executescript(
+            """
+            CREATE TABLE scenes (id INTEGER PRIMARY KEY, title TEXT, date TEXT, studio_id INTEGER);
+            CREATE TABLE scenes_files (scene_id INTEGER, file_id INTEGER);
+            CREATE TABLE files (id INTEGER PRIMARY KEY, basename TEXT, parent_folder_id INTEGER);
+            CREATE TABLE folders (id INTEGER PRIMARY KEY, path TEXT);
+            CREATE TABLE video_files (file_id INTEGER, height INTEGER);
+            CREATE TABLE performers_scenes (scene_id INTEGER, performer_id INTEGER);
+            CREATE TABLE performers (id INTEGER PRIMARY KEY, name TEXT, gender TEXT);
+            CREATE TABLE studios (id INTEGER PRIMARY KEY, name TEXT);
+            CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT);
+            CREATE TABLE scenes_tags (scene_id INTEGER, tag_id INTEGER);
+            """
+        )
+        connection.execute("INSERT INTO scenes VALUES (1, 'Fixture Title', '2026-01-01', NULL)")
+        connection.execute("INSERT INTO folders VALUES (1, ?)", (self.media_directory,))
+        connection.executemany(
+            "INSERT INTO files VALUES (?, ?, 1)", [(1, "one.mp4"), (2, "two.mkv")]
+        )
+        connection.executemany("INSERT INTO scenes_files VALUES (1, ?)", [(1,), (2,)])
+        connection.executemany("INSERT INTO video_files VALUES (?, ?)", [(1, 1080), (2, 2160)])
+        connection.commit()
+        connection.close()
 
     def test_multi_file_scene_uses_one_safe_plan_for_preview_and_apply(self):
         run_renamer.run()

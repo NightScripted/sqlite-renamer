@@ -2,6 +2,8 @@
 
 ## Executive Summary
 
+> **Historical baseline, reconciled 2026-08-24.** The findings below describe the repository at `dd22a7145af151ee78a2aa0e1315df99b1044483` and must not be read as current status. Phase 0 and Phase 1 safety work, plus Phase 2 implementation, have since resolved `REL-001`, `TEST-001`, `TEST-002`, `ARCH-001`, `DX-001`, and `DX-002`; `PERF-001` now has a synthetic baseline. `GH-001`, the repository-policy portion of `GH-002`, and GitHub homepage metadata remain administrator actions. See `ROADMAP.md` for the current canonical tracker.
+
 `sqlite-renamer` is a small Python command-line utility that reads metadata from a Stash SQLite database and renames media files in place. Its core safety posture is sound: the database is opened read-only, live filesystem mutation is opt-in, SQL values are parameterized, the codebase is compact, and the current 44-test suite passes on Python 3.12–3.14 in GitHub Actions.
 
 Project health is **generally good but not yet release-grade for unattended bulk renaming**. The largest confirmed risk is that dry-run output is not produced by a fully validated rename plan: it does not check whether sources or destinations exist and can propose two operations with the same destination. That weakens the user's main safety gate. Windows filename validation, real-SQLite integration coverage, run isolation in logs, and separation of planning from execution are the next most important improvements.

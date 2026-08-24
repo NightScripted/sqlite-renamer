@@ -56,7 +56,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R1-1 — Add privacy-safe SQLite and filesystem integration fixtures
 
-- **Status:** Partially completed 2026-08-24. A temporary-filesystem regression covers a multi-file scene through planning and apply, while database boundaries are mocked to preserve the read-only test contract. A privacy-safe supported-schema SQLite fixture that executes the real joins remains outstanding.
+- **Status:** Completed 2026-08-24. The integration suite creates an invented supported-schema SQLite database and temporary media tree, then exercises real joins, multi-file planning, and explicit apply without touching user data.
 - **Source:** `TEST-002`, `REL-001`, `BUG-001`
 - **Action:** Create a minimal supported-schema SQLite fixture and temporary media tree covering tag/fallback order, multiple files per scene, duplicates, missing files, occupied destinations, and Unicode/platform filename cases.
 - **Reason / expected effect:** Validates real SQL/cardinality and complete operation semantics rather than mock call shapes.
@@ -80,6 +80,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R2-1 — Complete the incremental planner/executor and DB lifecycle split
 
+- **Status:** Completed 2026-08-24. `Database` owns one read-only connection and query helpers; discovery receives that handle explicitly; rendering/validation remain pure; `execution.py` owns filesystem application.
 - **Source:** `ARCH-001`
 - **Action:** After `R0-1`, move discovery/querying behind an explicit database handle, retain pure renderer/validator functions, and isolate the filesystem executor.
 - **Reason / expected effect:** Removes global test state and makes schema, planning, and mutation independently testable.
@@ -90,6 +91,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R2-2 — Measure all production modules and restore the 80% coverage gate
 
+- **Status:** Completed 2026-08-24. `run_renamer.py` is no longer omitted and the exact coverage command measures every production module at 92.33% on the local Python 3.14 verification run.
 - **Source:** `TEST-001`
 - **Action:** Remove the `run_renamer.py` omit rule, test runner helpers/fallback/dry-run initialization/main boundaries, and keep the threshold at or above 80% across all first-party modules.
 - **Reason / expected effect:** Makes the published quality gate truthful.
@@ -100,6 +102,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R2-3 — De-duplicate CI and make successful CodeQL required
 
+- **Status:** Implementation completed 2026-08-24; GitHub administration pending. CI now runs feature work through pull requests only, limits `push` runs to `main`, and uses ten-minute job timeouts. Requiring the stable CodeQL check remains a separate administrator action after this PR proves the new check names.
 - **Source:** `DX-001`, `GH-001`
 - **Action:** Limit `push` CI to `main` while retaining pull-request checks, add a bounded timeout, verify stable check names, then add CodeQL to `main` required checks.
 - **Reason / expected effect:** Halves duplicate PR matrix work while ensuring the existing security analysis gates merges.
@@ -110,6 +113,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R2-4 — Harden GitHub Actions supply-chain policy
 
+- **Status:** Workflow implementation completed 2026-08-24; GitHub administration pending. Every workflow action is pinned to a reviewed full SHA with a version comment, and existing Dependabot Actions updates remain enabled. Restricting allowed Actions and enforcing SHA pins are separate administrator actions after this PR validates the workflow.
 - **Source:** `GH-002`
 - **Action:** Replace action tags with reviewed full commit SHAs plus version comments, configure Dependabot to update them, restrict allowed actions to required GitHub-owned/approved actions, then enable SHA pin enforcement.
 - **Reason / expected effect:** Reduces mutable-reference and unapproved-action risk.
@@ -120,6 +124,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R2-5 — Benchmark query and memory behavior before optimization
 
+- **Status:** Completed 2026-08-24. The reproducible synthetic benchmark records time, SQLite statement count, and peak Python allocation at 100 and 1,000 scenes; it confirms the expected `3N + 1` metadata-query shape without justifying an optimization yet.
 - **Source:** `PERF-001`
 - **Action:** Build privacy-safe fixtures at representative sizes and record elapsed time, query count, and peak memory for planning.
 - **Reason / expected effect:** Converts a static N+1 observation into a measured decision.
@@ -130,6 +135,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R2-6 — Consolidate current documentation
 
+- **Status:** Completed 2026-08-24. README and contribution guidance now describe the current safety, quality, and benchmark contracts; the forum link is clearly historical. Changing GitHub homepage metadata remains a separate administrator action.
 - **Source:** `DOC-001`, `DOC-002`, `SEC-3`
 - **Action:** Update README/CLAUDE/config guidance after behavior changes, and label the forum thread as historical/community context. The June audit has been reconciled into `ANALYSIS.md` and removed; Git history retains the original artifact.
 - **Reason / expected effect:** Establishes one truthful current tracker and prevents stale/private setup guidance.
@@ -140,6 +146,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R2-7 — Define and adopt a reproducible quality-tool baseline
 
+- **Status:** Completed 2026-08-24. Repository-owned Ruff, mypy, and yamllint configuration and pinned development tools are documented and run in CI alongside Actionlint v1.7.12.
 - **Source:** `DX-002`
 - **Action:** Choose a deliberately scoped Ruff lint/format, mypy, and GitHub-aware YAML policy; record compatible tool versions or constraints; fix the resulting baseline in a mechanical change; document one local command; add CI only after it passes.
 - **Reason / expected effect:** Converts tool-default-dependent results into a stable contributor contract without mixing broad modernization with correctness work.
@@ -256,15 +263,15 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 | R0-1 | Authoritative validated plan/apply | `REL-001`, `ARCH-001`, `FEAT-001` | Complete | Medium | Current semantics regression tests | Phase 0 | Dry run and apply consume identical plan; all blocking conflicts detected before mutation |
 | R0-2 | Privacy-safe local configuration | `SEC-3`, `FEAT-003` | Complete | Medium | Configuration precedence decision | Phase 0 | No private defaults tracked; clean setup works; missing config fails clearly |
 | R0-3 | Complete Windows filename rules | `BUG-001`, `TEST-002` | Verification pending | Medium | Normalization policy | Phase 0 | Platform rule suite passes; normalization collisions block safely |
-| R1-1 | SQLite/filesystem integration fixture | `TEST-002`, `REL-001` | P1 partial | Medium | Plan interface | Phase 1 | Real queries and multi-file/collision paths pass in CI |
+| R1-1 | SQLite/filesystem integration fixture | `TEST-002`, `REL-001` | Complete | Medium | Plan interface | Phase 1 | Real queries and multi-file/collision paths pass in CI |
 | R1-2 | Versioned run manifest | `REL-002`, `FEAT-001` | P1 partial | Medium | R0-1 | Phase 1 | Every run has attributable operation states and completion marker |
-| R2-1 | Explicit planner/executor/DB boundaries | `ARCH-001` | P2 | Medium | R0-1, R1-1 | Phase 2 | No global cursor required by tests; behavior unchanged |
-| R2-2 | Complete-source coverage gate | `TEST-001` | P2 | Small | Runner tests | Phase 2 | All production modules measured at ≥80% on 3.12–3.14 |
-| R2-3 | CI de-duplication and required CodeQL | `DX-001`, `GH-001` | P2 | Small | Stable check-name test | Phase 2 | One PR matrix; main merge matrix; CodeQL gates merges |
-| R2-4 | Actions policy hardening | `GH-002` | P2 | Small | Reviewed SHAs/update automation | Phase 2 | All workflows pass under restricted SHA policy |
-| R2-5 | Performance benchmark | `PERF-001` | P3 | Small | Stable fixture/planner | Phase 2 | Repeatable size/query/time/memory baseline and decision threshold |
-| R2-6 | Documentation consolidation | `DOC-002`, `SEC-3` | P2 | Small | Behavior/config changes | Phase 2 | One current tracker; no stale/private setup guidance |
-| R2-7 | Reproducible quality-tool baseline | `DX-002` | P2 | Small | Rule/version policy | Phase 2 | Configured lint, format, type, Actions, and YAML checks pass locally and in CI |
+| R2-1 | Explicit planner/executor/DB boundaries | `ARCH-001` | Complete | Medium | R0-1, R1-1 | Phase 2 | No global cursor required by tests; behavior unchanged |
+| R2-2 | Complete-source coverage gate | `TEST-001` | Complete | Small | Runner tests | Phase 2 | All production modules measured at ≥80% on 3.12–3.14 |
+| R2-3 | CI de-duplication and required CodeQL | `DX-001`, `GH-001` | Implementation complete; admin pending | Small | Stable check-name test | Phase 2 | One PR matrix; main merge matrix; CodeQL gates merges |
+| R2-4 | Actions policy hardening | `GH-002` | Workflow complete; admin pending | Small | Reviewed SHAs/update automation | Phase 2 | All workflows pass under restricted SHA policy |
+| R2-5 | Performance benchmark | `PERF-001` | Complete | Small | Stable fixture/planner | Phase 2 | Repeatable size/query/time/memory baseline and decision threshold |
+| R2-6 | Documentation consolidation | `DOC-002`, `SEC-3` | Complete | Small | Behavior/config changes | Phase 2 | One current tracker; no stale/private setup guidance |
+| R2-7 | Reproducible quality-tool baseline | `DX-002` | Complete | Small | Rule/version policy | Phase 2 | Configured lint, format, type, Actions, and YAML checks pass locally and in CI |
 | R3-1 | Manifest-based safe undo | `FEAT-002`, `REL-002` | P3 | Medium | R0-1, R1-2 | Phase 3 | Apply/undo round trip and conflict refusal verified |
 | R3-2 | First package/release | `FEAT-004` | P3 | Medium | Phases 0–1 | Phase 3 | Clean supported-platform install and approved immutable release |
 | X-1 | Evaluate Stash API/plugin mode | `FEAT-005` | Exploratory | Medium/High | User/API research | Exploratory/Phase 4 | Evidence supports value and preserves safety invariants before promotion |
@@ -274,7 +281,7 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 - Every dry-run operation has a validation status; apply rejects changed or conflicting plans before the first rename.
 - Integration tests cover multiple files per scene, missing sources, existing destinations, destination collisions, and interruption states.
 - Windows filename rule tests pass on a Windows job or equivalent verified platform runner.
-- All five production modules are included in the coverage report and maintain at least 80% coverage.
+- All production modules are included in the coverage report and maintain at least 80% coverage.
 - Repository-owned lint, formatting, type, Actions, and YAML checks are versioned, documented, and green without relying on changing tool defaults.
 - Every live run has a unique versioned manifest and explicit completed/partial/failed status.
 - No user-specific path or private media example is tracked in current distributable configuration/documentation.
@@ -285,18 +292,9 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 
 ## Recommended Execution Order
 
-1. **R0-1:** Freeze existing behavior, introduce the plan model, and validate conflicts. It comes first because every recovery, integration, and UX improvement depends on authoritative operations. Validate with unit, real-SQLite, and temporary-filesystem regression tests before live use.
-2. **R0-2:** Move private/local configuration behind an explicit boundary while compatibility can be tested against the new plan command. Validate clean-checkout setup and privacy scans.
-3. **R0-3:** Add complete filename validation before plans are considered valid. Verify edge cases on Windows.
-4. **R1-1:** Expand the minimal fixture into the durable integration suite. Ensure it contains invented data and no external paths.
-5. **R1-2:** Persist versioned run state and simulate interruption. Do not build undo until completion semantics are trustworthy.
-6. **R2-1:** Finish the incremental architecture split using the fixture as protection. Confirm no user-visible behavior change.
-7. **R2-2:** Include the runner in coverage and restore the truthful ≥80% gate across all supported Python versions.
-8. **R2-7:** Select and record a narrow quality-tool policy, apply any mechanical baseline separately, then add the green checks to CI.
-9. **R2-3:** Remove duplicate CI runs, add timeout, verify check identities, and only then update branch protection for CodeQL.
-10. **R2-4:** Pin and restrict Actions in a tested change before enforcing repository policy.
-11. **R2-6:** Reconcile README/contributor/agent guidance with landed behavior and update homepage metadata through separate approval.
-12. **R2-5:** Benchmark stabilized planning. Optimize only if agreed thresholds fail.
-13. **R3-1:** Implement conflict-aware undo from completed manifests and verify round trips.
-14. **R3-2:** Prepare packaging and a release candidate; publish/tag only after explicit approval and clean matrix/security checks.
-15. **X-1:** Separately validate Stash API/plugin demand and constraints; promote only with evidence.
+1. **Validate this PR's checks:** Confirm the new `Quality` and Python check names and the `main` push/PR event behavior before changing protection.
+2. **Administrator actions, separately approved:** Require the verified CodeQL check on `main`; restrict permitted Actions; then enable full-SHA enforcement. Update the GitHub homepage only after a separately approved public destination decision.
+3. **R0-3:** Run the existing filename rule suite on Windows before describing Windows runtime support as complete.
+4. **R1-2 / R3-1:** Extend manifest interruption/completion semantics, then implement conflict-aware undo only after that contract is trustworthy.
+5. **R3-2:** Prepare packaging and a release candidate; publish/tag only after explicit approval and clean matrix/security checks.
+6. **X-1:** Separately validate Stash API/plugin demand and constraints; promote only with evidence.
