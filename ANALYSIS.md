@@ -14,7 +14,7 @@ The project is mature enough for careful personal use with backups and reviewed 
 |---|---|
 | Repository | `NightScripted/sqlite-renamer` |
 | Repository root | `/Users/zacharywilliams/Developer/external/NightScripted/sqlite-renamer` |
-| Audit type | Re-audit of the historical `AUDIT.md`; initial audit in the `ANALYSIS.md`/`ROADMAP.md` format |
+| Audit type | Re-audit of the June 16 historical audit; initial audit in the `ANALYSIS.md`/`ROADMAP.md` format |
 | Audit scope | Standard |
 | Current branch | `main` |
 | Default branch | `main` |
@@ -89,7 +89,7 @@ The database connection uses SQLite URI `mode=ro`, making the Stash database a r
 - `tests/` contains unit-style tests built primarily around a shared mock cursor.
 - `.github/workflows/test.yml` supplies the Python version matrix and coverage gate; `.github/dependabot.yml` supplies dependency automation.
 - `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, and `LICENSE` form the current public documentation surface.
-- `AUDIT.md` is a preserved historical audit snapshot rather than a current tracker.
+- The June 16 audit is fully reconciled below; `ANALYSIS.md` and `ROADMAP.md` are the current records.
 
 There are no generated sources, migrations owned by this project, package metadata, release tooling, or nested applications.
 
@@ -134,6 +134,9 @@ Follow-up tool versions in the ignored `.venv` were Ruff 0.16.4, mypy 2.3.1, Ban
 
 | ID/Existing Item | Source | Lifecycle | Current Status | Verification | Still Relevant? | Recommended Action |
 |---|---|---|---|---|---|---|
+
+Source entries naming `AUDIT.md` identify the deleted June 16 source document; its relevant findings and dispositions are retained in this table.
+
 | N-1 / SEC-1 dynamic scene-ID SQL | `AUDIT.md` | Resolved | Already fixed | Current runner constructs placeholders and passes parameters; regression tests and PR #11 history reviewed | No | Preserve parameterized invariant |
 | N-2 Windows filename edges | `AUDIT.md` | Persistent; superseded by `BUG-001` | Confirmed statically | Sanitizer compared with Microsoft filename rules | Yes | Implement and test a platform-neutral Windows validator |
 | N-3 240-character cap | `AUDIT.md` | Persistent | Documented design limit | Code and README agree | Optional | Keep until a supported-platform need justifies changing it |
@@ -247,7 +250,7 @@ No historical finding was reopened or regressed.
 #### SEC-3 — Tracked configuration and documentation disclose private local path context
 
 - **Category / lifecycle / validation:** Security/privacy; Persistent; Validated Low finding
-- **Affected components:** `config.py:5,35`, `README.md:92`, `CLAUDE.md:27`, `AUDIT.md:117`
+- **Affected components:** `config.py:5,35`, `README.md:92`, `CLAUDE.md:27`
 - **Evidence:** The public repository contains a user-specific profile/database location and a private media hierarchy. No credential or secret token was found. Values are intentionally not reproduced here.
 - **Impact:** The disclosure exposes local naming and media-context metadata and encourages future users to edit tracked configuration directly, making accidental commits more likely.
 - **Remediation:** Commit only placeholder/example configuration; load ignored local configuration, environment variables, or explicit CLI/config paths. Replace private examples in current docs. Separately decide whether history rewriting is warranted; it is disruptive and requires explicit approval.
@@ -261,15 +264,6 @@ No historical finding was reopened or regressed.
 - **Impact:** A rollback reference can mix operations from multiple executions, making recovery and audit interpretation error-prone.
 - **Remediation:** Use a versioned run manifest with a unique run ID, configuration/plan digest, per-operation result, and completion status. Preserve a human-readable export if useful.
 - **Confidence / disposition:** High; Scheduled (`R1-2`)
-
-#### DOC-001 — The root historical audit is stale current-state documentation
-
-- **Category / lifecycle / validation:** Documentation; Persistent historical artifact; Validated finding
-- **Affected components:** `AUDIT.md`
-- **Evidence:** It is correctly labeled historical, but its reconciliation already lists an older dependency constraint and retains private local details. Its root location competes with the new canonical analysis.
-- **Impact:** Maintainers can mistake a dated snapshot for present status or revive resolved work.
-- **Remediation:** After this audit is accepted, archive it as `docs/audits/2026-06-16.md`, keep its historical IDs, remove current-state claims from the snapshot, and link it from the new analysis lineage.
-- **Confidence / disposition:** High; Scheduled (`R2-6`)
 
 #### DOC-002 — The repository homepage and README lead with a stale community thread
 
@@ -428,7 +422,6 @@ There is no graphical interface, so screen-reader, focus, touch, contrast, and m
 | Document | Status | Problems | Recommended Action |
 |---|---|---|---|
 | `README.md` | Mostly accurate | Bare stale forum link; preview limitations not disclosed; tracked-config workflow creates privacy risk | Update after planner/config changes; label historical link |
-| `AUDIT.md` | Useful historical snapshot, stale as current guidance | Root-level competition, stale reconciliation, private context | Archive intact enough for lineage, remove current-authority implication |
 | `CONTRIBUTING.md` | Accurate, concise | Will need new integration/plan and repository-owned quality commands | Keep; update with implementation work |
 | `SECURITY.md` | Accurate | No material gap for current maturity | Keep |
 | `LICENSE` | Accurate GPL version 3 or later | None found | Keep |
@@ -442,7 +435,6 @@ There is no graphical interface, so screen-reader, focus, touch, contrast, and m
 Recommended final documentation structure:
 
 - Root: `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`, `ANALYSIS.md`, `ROADMAP.md`
-- `docs/audits/`: immutable dated historical audits, including the June snapshot
 - `docs/design/rename-plan.md`: plan schema, validation invariants, and recovery contract when implemented
 - `CHANGELOG.md`: release-facing changes beginning with the first tagged release
 
