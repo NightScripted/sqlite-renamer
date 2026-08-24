@@ -64,7 +64,7 @@ All behaviour is controlled by editing [`config.py`](config.py) — no other fil
 
 ### Tag-to-template mapping
 
-`tags_dict` maps each Stash tag to a filename template. Tag passes run in dictionary order. Configure the tag rules to be mutually exclusive: a scene carrying more than one configured tag is selected by every matching pass, and a later pass will attempt to act on the database's original filename after an earlier live rename.
+`tags_dict` maps each Stash tag to a filename template. Tag passes run in dictionary order, and the first matching configured tag claims each scene. Later tag passes skip already claimed scenes; the fallback template applies only to scenes that no configured tag claimed.
 
 > Tag names below are examples — replace them with your actual Stash tag names.
 
