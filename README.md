@@ -29,7 +29,7 @@ The SQLite database is read-only — the script never writes to it.
 
 ## First Run (Dry Run)
 
-`DRY_RUN` defaults to `True` in [`config.py`](config.py), so a first run does not change files. Keep it enabled until you have reviewed the output.
+`DRY_RUN` defaults to `True` in [`config.py`](config.py), so a first run does not rename media files. Keep it enabled until you have reviewed the output.
 
 Run:
 
@@ -37,7 +37,7 @@ Run:
 python run_renamer.py
 ```
 
-This writes `renamer_plan.json` and `renamer_dryrun.txt`. The dry run identifies ready, no-op, and blocked operations after checking source files, occupied destinations, directory containment, and collisions across the complete batch. Set `STOP_AFTER_FIRST = True` to limit each matching tag or fallback pass to one scene.
+This writes `renamer_plan.json` and `renamer_dryrun.txt`. The dry run identifies ready, no-op, and blocked operations after checking source files, occupied destinations, directory containment, and collisions across the complete batch. It does not create a run manifest. Set `STOP_AFTER_FIRST = True` to limit each matching tag or fallback pass to one scene.
 
 For a live run, back up the files, review the dry-run output, then explicitly set `DRY_RUN = False` and run the same command again. To apply a reviewed plan explicitly, run `python run_renamer.py --apply-plan renamer_plan.json`; its digest and filesystem state are revalidated before any rename. A live run never writes to the SQLite database.
 
@@ -99,12 +99,14 @@ All run artifacts are created next to the command's working directory and are ig
 
 | File | When written | Contents |
 |---|---|---|
-| `renamer_dryrun.txt` | Dry run; cleared at the start of each dry run | Proposed `old_path -> new_path` renames |
+| `renamer_plan.json` | Every planning run | Versioned plan, timestamp, operations, and SHA-256 digest to review before applying |
+| `renamer_dryrun.txt` | Every planning run; cleared at the start of each dry run | Proposed `old_path -> new_path` renames and `READY`, `NOOP`, or `BLOCKED` status |
+| `renamer_runs/<uuid>.json` | Non-dry planning and digest-valid `--apply-plan` execution | Atomically written versioned manifest with timestamp, plan digest, overall state, completion marker, and per-operation result |
 | `rename_log.txt` | Successful live rename when `USING_LOG = True` | `scene_id\|old_path\|new_path` rollback reference |
 | `renamer_duplicate.txt` | Database collision, or an existing destination during a live rename | `scene_id\|current_path\|new_filename` |
 | `renamer_fail.txt` | OS-level rename error | `old_path -> new_path` |
 
-`rename_log.txt`, `renamer_duplicate.txt`, and `renamer_fail.txt` append across runs. Archive or clear them before a new live run if you need a per-run record.
+`renamer_runs/` is created only with `DRY_RUN = False`; dry runs create no manifests. Manifests include media paths and metadata-derived filenames, so treat them as private run records and keep them out of version control. `rename_log.txt`, `renamer_duplicate.txt`, and `renamer_fail.txt` append across runs. Archive or clear them before a new live run if you need a per-run record.
 
 ## Development and verification
 

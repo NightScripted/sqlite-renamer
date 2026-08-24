@@ -11,7 +11,7 @@ The roadmap preserves the utility's strongest constraints: read the Stash databa
 This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit:
 
 - Completed: parameterized scene selection, runner/tag-precedence refactor and tests, GPL licensing, contribution/security guidance, dependency automation, Python 3.12–3.14 CI, and removal of the empty backlog.
-- Persistent and carried forward: Windows filename handling (`BUG-001`), log/run identity (`REL-002`), planner/executor separation (`ARCH-001`), privacy-safe configuration (`SEC-3`), repository-owned quality tooling (`DX-002`), action pinning (`GH-002`), and benchmark-first performance review (`PERF-001`).
+- Persistent and carried forward: Windows filename handling (`BUG-001`), remaining run/recovery semantics (`REL-002`), planner/executor separation (`ARCH-001`), privacy-safe configuration (`SEC-3`), repository-owned quality tooling (`DX-002`), action pinning (`GH-002`), and benchmark-first performance review (`PERF-001`).
 - Newly added: authoritative plan validation (`REL-001`/`FEAT-001`), complete-source coverage (`TEST-001`), SQLite/platform integration (`TEST-002`), stale external homepage (`DOC-002`), duplicated PR CI (`DX-001`), and required CodeQL governance (`GH-001`).
 - Reprioritized: undo follows a structured manifest; packaging/releases follow safety and configuration stabilization; performance optimization follows measurement.
 - Removed from committed work: the obsolete empty-bracket, 1440p-label, future-token, Python 3.10, and provenance concerns.
@@ -26,7 +26,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 - **Action:** Introduce a versioned rename-operation/plan model. Discover all operations first; validate source existence, destination occupancy, no-op identity, normalized duplicate destinations, and directory containment; render dry-run from that plan; apply only an unchanged valid plan.
 - **Reason / expected effect:** Restores dry run as a trustworthy safety gate and prevents foreseeable partial/conflicting batches.
 - **Preconditions / risk:** Freeze current template/tag/fallback semantics with regression tests. Main risk is behavior drift during extraction.
-- **Validation:** Unit tests for each validation state; temporary-filesystem tests; real SQLite fixture with two files for one scene; plan digest/change rejection; existing 44 tests remain green.
+- **Validation:** Unit tests for each validation state; temporary-filesystem tests; plan digest/change rejection; existing regression tests remain green. Real SQLite query coverage remains tracked by `R1-1`.
 - **Rollback/recovery:** Keep the old execution path behind an internal transition boundary until parity tests pass; revert the focused commit if parity fails. No migration or irreversible data operation is required.
 - **Authority:** Code implementation requires a separate approved task; no GitHub administration required.
 
@@ -56,6 +56,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R1-1 — Add privacy-safe SQLite and filesystem integration fixtures
 
+- **Status:** Partially completed 2026-08-24. A temporary-filesystem regression covers a multi-file scene through planning and apply, while database boundaries are mocked to preserve the read-only test contract. A privacy-safe supported-schema SQLite fixture that executes the real joins remains outstanding.
 - **Source:** `TEST-002`, `REL-001`, `BUG-001`
 - **Action:** Create a minimal supported-schema SQLite fixture and temporary media tree covering tag/fallback order, multiple files per scene, duplicates, missing files, occupied destinations, and Unicode/platform filename cases.
 - **Reason / expected effect:** Validates real SQL/cardinality and complete operation semantics rather than mock call shapes.
@@ -66,6 +67,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R1-2 — Replace mixed append logs with a versioned run manifest
 
+- **Status:** Partially completed 2026-08-24. UUID-named, versioned, atomically written manifests under ignored `renamer_runs/` record the timestamp, plan digest, run state, completion marker, and per-operation result for non-dry planning and digest-valid application. Configuration digest capture, exception/interruption records, resume semantics, and replacement of legacy append logs remain outstanding.
 - **Source:** `REL-002`, `FEAT-001`; enables `FEAT-002`
 - **Action:** Give each plan/application a run ID and manifest containing schema version, timestamp, configuration/plan digest, source/destination, validation state, apply result, error, and completion marker. Preserve a readable summary/export.
 - **Reason / expected effect:** Makes partial runs, recovery, support, and later undo attributable to one execution.
@@ -254,8 +256,8 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 | R0-1 | Authoritative validated plan/apply | `REL-001`, `ARCH-001`, `FEAT-001` | Complete | Medium | Current semantics regression tests | Phase 0 | Dry run and apply consume identical plan; all blocking conflicts detected before mutation |
 | R0-2 | Privacy-safe local configuration | `SEC-3`, `FEAT-003` | Complete | Medium | Configuration precedence decision | Phase 0 | No private defaults tracked; clean setup works; missing config fails clearly |
 | R0-3 | Complete Windows filename rules | `BUG-001`, `TEST-002` | Verification pending | Medium | Normalization policy | Phase 0 | Platform rule suite passes; normalization collisions block safely |
-| R1-1 | SQLite/filesystem integration fixture | `TEST-002`, `REL-001` | P1 | Medium | Plan interface | Phase 1 | Real queries and multi-file/collision paths pass in CI |
-| R1-2 | Versioned run manifest | `REL-002`, `FEAT-001` | P1 | Medium | R0-1 | Phase 1 | Every run has attributable operation states and completion marker |
+| R1-1 | SQLite/filesystem integration fixture | `TEST-002`, `REL-001` | P1 partial | Medium | Plan interface | Phase 1 | Real queries and multi-file/collision paths pass in CI |
+| R1-2 | Versioned run manifest | `REL-002`, `FEAT-001` | P1 partial | Medium | R0-1 | Phase 1 | Every run has attributable operation states and completion marker |
 | R2-1 | Explicit planner/executor/DB boundaries | `ARCH-001` | P2 | Medium | R0-1, R1-1 | Phase 2 | No global cursor required by tests; behavior unchanged |
 | R2-2 | Complete-source coverage gate | `TEST-001` | P2 | Small | Runner tests | Phase 2 | All production modules measured at ≥80% on 3.12–3.14 |
 | R2-3 | CI de-duplication and required CodeQL | `DX-001`, `GH-001` | P2 | Small | Stable check-name test | Phase 2 | One PR matrix; main merge matrix; CodeQL gates merges |
