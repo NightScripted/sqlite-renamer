@@ -17,6 +17,7 @@ renamer_dryrun.txt
 renamer_duplicate.txt
 renamer_fail.txt
 renamer_plan.json
+renamer_runs/
 
 # Testing
 .pytest_cache/
