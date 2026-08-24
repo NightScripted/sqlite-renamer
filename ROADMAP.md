@@ -123,14 +123,14 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 - **Rollback/recovery:** Benchmark-only work has no product migration; discard proposed optimization if thresholds are acceptable.
 - **Authority:** Separate task; no live library required unless separately authorized.
 
-### R2-6 — Consolidate current and historical documentation
+### R2-6 — Consolidate current documentation
 
 - **Source:** `DOC-001`, `DOC-002`, `SEC-3`
-- **Action:** Archive the June audit under `docs/audits/`, preserve its IDs/lineage while removing current-authority framing, update README/CLAUDE/config guidance after behavior changes, and label the forum thread as historical/community context.
+- **Action:** Update README/CLAUDE/config guidance after behavior changes, and label the forum thread as historical/community context. The June audit has been reconciled into `ANALYSIS.md` and removed; Git history retains the original artifact.
 - **Reason / expected effect:** Establishes one truthful current tracker and prevents stale/private setup guidance.
-- **Preconditions / risk:** Behavior/config changes must land first so docs describe reality. Historical context must not be erased.
+- **Preconditions / risk:** Behavior/config changes must land first so docs describe reality.
 - **Validation:** Link check, setup walkthrough, privacy-pattern scan, and comparison against current code/CI.
-- **Rollback/recovery:** Move/archive changes are recoverable through Git; retain history and redirect/link from current docs.
+- **Rollback/recovery:** Documentation changes are recoverable through Git.
 - **Authority:** Separate documentation task. Changing GitHub homepage is a separate manual administrative action (`G2`).
 
 ### R2-7 — Define and adopt a reproducible quality-tool baseline
@@ -258,7 +258,7 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 | R2-3 | CI de-duplication and required CodeQL | `DX-001`, `GH-001` | P2 | Small | Stable check-name test | Phase 2 | One PR matrix; main merge matrix; CodeQL gates merges |
 | R2-4 | Actions policy hardening | `GH-002` | P2 | Small | Reviewed SHAs/update automation | Phase 2 | All workflows pass under restricted SHA policy |
 | R2-5 | Performance benchmark | `PERF-001` | P3 | Small | Stable fixture/planner | Phase 2 | Repeatable size/query/time/memory baseline and decision threshold |
-| R2-6 | Documentation consolidation | `DOC-001`, `DOC-002`, `SEC-3` | P2 | Small | Behavior/config changes | Phase 2 | One current tracker; history archived; no stale/private setup guidance |
+| R2-6 | Documentation consolidation | `DOC-002`, `SEC-3` | P2 | Small | Behavior/config changes | Phase 2 | One current tracker; no stale/private setup guidance |
 | R2-7 | Reproducible quality-tool baseline | `DX-002` | P2 | Small | Rule/version policy | Phase 2 | Configured lint, format, type, Actions, and YAML checks pass locally and in CI |
 | R3-1 | Manifest-based safe undo | `FEAT-002`, `REL-002` | P3 | Medium | R0-1, R1-2 | Phase 3 | Apply/undo round trip and conflict refusal verified |
 | R3-2 | First package/release | `FEAT-004` | P3 | Medium | Phases 0–1 | Phase 3 | Clean supported-platform install and approved immutable release |
@@ -290,7 +290,7 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 8. **R2-7:** Select and record a narrow quality-tool policy, apply any mechanical baseline separately, then add the green checks to CI.
 9. **R2-3:** Remove duplicate CI runs, add timeout, verify check identities, and only then update branch protection for CodeQL.
 10. **R2-4:** Pin and restrict Actions in a tested change before enforcing repository policy.
-11. **R2-6:** Reconcile README/contributor/agent guidance with landed behavior, archive the prior audit, and update homepage metadata through separate approval.
+11. **R2-6:** Reconcile README/contributor/agent guidance with landed behavior and update homepage metadata through separate approval.
 12. **R2-5:** Benchmark stabilized planning. Optimize only if agreed thresholds fail.
 13. **R3-1:** Implement conflict-aware undo from completed manifests and verify round trips.
 14. **R3-2:** Prepare packaging and a release candidate; publish/tag only after explicit approval and clean matrix/security checks.
