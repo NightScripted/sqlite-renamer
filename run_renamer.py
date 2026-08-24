@@ -114,8 +114,9 @@ def run(plan_path: str = PLAN_FILE) -> None:
         dry_run_log.write(rendered)
     logger.logPrint(rendered.rstrip())
     logger.logPrint("[PLAN] Wrote {}".format(plan_path))
-    manifest = write_manifest(plan, issues, "blocked" if issues else "planned")
-    logger.logPrint("[MANIFEST] Wrote {}".format(manifest))
+    if not config.DRY_RUN:
+        manifest = write_manifest(plan, issues, "blocked" if issues else "planned")
+        logger.logPrint("[MANIFEST] Wrote {}".format(manifest))
     # Planning never mutates files. A reviewed persisted plan requires the
     # explicit --apply-plan command and DRY_RUN=False configuration.
     return

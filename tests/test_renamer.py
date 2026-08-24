@@ -333,7 +333,8 @@ class TestRunnerTagPrecedence(unittest.TestCase):
              patch.object(run_renamer.db, "gettingTagsID", side_effect=["10", "20"]), \
              patch.object(run_renamer.db, "get_SceneID_fromTags", side_effect=["1,2", "2,3"]), \
              patch.object(run_renamer, "discover_operations", return_value=[]) as mock_discover, \
-             patch.object(run_renamer, "write_plan"):
+             patch.object(run_renamer, "write_plan"), \
+             patch.object(run_renamer, "write_manifest"):
             run_renamer.run()
 
         self.assertEqual(
