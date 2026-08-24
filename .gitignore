@@ -24,6 +24,9 @@ renamer_runs/
 .coverage
 htmlcov/
 coverage.xml
+build/
+dist/
+*.egg-info/
 
 # IDE
 .idea/

@@ -159,6 +159,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R3-1 — Add safe undo from completed manifests
 
+- **Status:** Completed 2026-08-24. Version 2 apply manifests persist a digest-verified operation record and completed-target SHA-256; `--undo-manifest` reconstructs only successful operations, refuses changed or occupied paths, and writes a linked undo manifest.
 - **Source:** `FEAT-002`, `REL-002`
 - **Action:** Generate reverse operations only from successfully applied manifest entries; validate that current paths/hashes or equivalent identities still match before reversing.
 - **Reason / expected effect:** Provides trustworthy recovery instead of asking users to interpret mixed text logs.
@@ -169,6 +170,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R3-2 — Prepare the first versioned release and installable package
 
+- **Status:** Preparation completed 2026-08-24; publication intentionally pending explicit authority. The project has PEP 621 metadata, a `sqlite-renamer` console entry point, source/wheel CI validation, changelog, and release runbook. No tag, package publication, or GitHub release has been created.
 - **Source:** `FEAT-004`, documented maintainer need for reproducible distribution
 - **Action:** Add `pyproject.toml`, console entry point, constraints/lock strategy appropriate to an application, changelog/release notes, release validation, and a tagged GitHub release; evaluate `pipx` installation.
 - **Reason / expected effect:** Gives users a stable artifact and supportable version rather than an arbitrary branch checkout.
@@ -272,8 +274,8 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 | R2-5 | Performance benchmark | `PERF-001` | Complete | Small | Stable fixture/planner | Phase 2 | Repeatable size/query/time/memory baseline and decision threshold |
 | R2-6 | Documentation consolidation | `DOC-002`, `SEC-3` | Complete | Small | Behavior/config changes | Phase 2 | One current tracker; no stale/private setup guidance |
 | R2-7 | Reproducible quality-tool baseline | `DX-002` | Complete | Small | Rule/version policy | Phase 2 | Configured lint, format, type, Actions, and YAML checks pass locally and in CI |
-| R3-1 | Manifest-based safe undo | `FEAT-002`, `REL-002` | P3 | Medium | R0-1, R1-2 | Phase 3 | Apply/undo round trip and conflict refusal verified |
-| R3-2 | First package/release | `FEAT-004` | P3 | Medium | Phases 0–1 | Phase 3 | Clean supported-platform install and approved immutable release |
+| R3-1 | Manifest-based safe undo | `FEAT-002`, `REL-002` | Complete | Medium | R0-1, R1-2 | Phase 3 | Apply/undo round trip and conflict refusal verified |
+| R3-2 | First package/release | `FEAT-004` | Preparation complete; publication pending | Medium | Phases 0–1 | Phase 3 | Clean supported-platform install and approved immutable release |
 | X-1 | Evaluate Stash API/plugin mode | `FEAT-005` | Exploratory | Medium/High | User/API research | Exploratory/Phase 4 | Evidence supports value and preserves safety invariants before promotion |
 
 ## Success Metrics

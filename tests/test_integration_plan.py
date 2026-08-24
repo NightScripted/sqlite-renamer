@@ -91,6 +91,12 @@ class TestPlanIntegration(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.media_directory, "Fixture Title.mkv")))
         self.assertEqual(len(os.listdir("renamer_runs")), 1)
 
+        applied_manifest = os.path.join("renamer_runs", os.listdir("renamer_runs")[0])
+        run_renamer.main(["--undo-manifest", applied_manifest])
+        self.assertTrue(os.path.exists(os.path.join(self.media_directory, "one.mp4")))
+        self.assertTrue(os.path.exists(os.path.join(self.media_directory, "two.mkv")))
+        self.assertEqual(len(os.listdir("renamer_runs")), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

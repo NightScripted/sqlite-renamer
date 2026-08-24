@@ -8,6 +8,7 @@ from planning import discover_operations
 from execution import apply_plan
 from rename_plan import create_plan, read_plan, render_plan, validate_plan, write_plan
 from run_manifest import write_manifest
+from undo import undo_manifest
 
 
 PLAN_FILE = "renamer_plan.json"
@@ -140,7 +141,15 @@ def main(argv: list[str] | None = None) -> None:
     """Load configuration and either create a plan or apply a saved plan."""
     parser = argparse.ArgumentParser(description="Safely plan or apply Stash file renames.")
     parser.add_argument("--config", help="path to a private Python configuration file")
-    parser.add_argument("--apply-plan", metavar="PATH", help="apply a saved, digest-verified plan")
+    action_group = parser.add_mutually_exclusive_group()
+    action_group.add_argument(
+        "--apply-plan", metavar="PATH", help="apply a saved, digest-verified plan"
+    )
+    action_group.add_argument(
+        "--undo-manifest",
+        metavar="PATH",
+        help="undo one completed v2 apply manifest after hash precondition checks",
+    )
     parser.add_argument(
         "--plan-file", default=PLAN_FILE, help="destination for a newly discovered plan"
     )
@@ -152,9 +161,24 @@ def main(argv: list[str] | None = None) -> None:
                 parser.error("refusing to apply a plan while DRY_RUN is enabled")
             plan = read_plan(args.apply_plan)
             issues = apply_plan(plan, "rename_log.txt" if config.USING_LOG else None)
-            write_manifest(plan, issues, "failed" if issues else "applied")
+            write_manifest(plan, issues, "failed" if issues else "applied", action="apply")
             if issues:
                 parser.error("plan is blocked or changed; regenerate and review it")
+            return
+        if args.undo_manifest:
+            if config.DRY_RUN:
+                parser.error("refusing to undo a manifest while DRY_RUN is enabled")
+            manifest, plan, issues = undo_manifest(args.undo_manifest)
+            undo_record = write_manifest(
+                plan,
+                issues,
+                "failed" if issues else "undone",
+                action="undo",
+                parent_run_id=manifest.run_id,
+            )
+            logger.logPrint("[MANIFEST] Wrote {}".format(undo_record))
+            if issues:
+                parser.error("undo is blocked by manifest or filesystem preconditions")
             return
         run(args.plan_file)
     except ValueError as error:
