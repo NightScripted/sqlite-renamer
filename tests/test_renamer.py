@@ -14,19 +14,21 @@ from renamer import edit_db
 
 
 class TestLogPrint(unittest.TestCase):
+    def setUp(self):
+        original_debug_mode = config.DEBUG_MODE
+        self.addCleanup(setattr, config, "DEBUG_MODE", original_debug_mode)
+
     def test_non_debug_message_always_printed(self):
         config.DEBUG_MODE = False
         with patch("builtins.print") as mock_print:
             logger.logPrint("Hello world")
         mock_print.assert_called_once_with("Hello world")
-        config.DEBUG_MODE = True
 
     def test_debug_message_is_suppressed_when_debug_is_off(self):
         config.DEBUG_MODE = False
         with patch("builtins.print") as mock_print:
             logger.logPrint("[DEBUG] hidden")
         mock_print.assert_not_called()
-        config.DEBUG_MODE = True
 
 
 class TestDatabaseHandle(unittest.TestCase):

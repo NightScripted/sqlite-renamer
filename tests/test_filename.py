@@ -44,6 +44,11 @@ class TestMakeFilename(unittest.TestCase):
         self.assertNotIn("  ", result)
         self.assertEqual(result, "2016-12-29 - Her Fantasy Ball")
 
+    def test_missing_middle_variable_collapses_repeated_separators(self):
+        info = {**FULL_INFO, "performer": None}
+        result = makeFilename(info, "$date - $performer - $title")
+        self.assertEqual(result, "2016-12-29 - Her Fantasy Ball")
+
     def test_missing_studio_strips_empty_brackets(self):
         info = {**FULL_INFO, "studio": None}
         result = makeFilename(info, "$date $performer - $title [$studio]")

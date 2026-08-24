@@ -24,6 +24,7 @@ def makeFilename(scene_info, query):
             new_filename = new_filename.replace(token, str(value))
     new_filename = re.sub(r"^\s*-\s*", "", new_filename)
     new_filename = re.sub(r"\s*-\s*$", "", new_filename)
+    new_filename = re.sub(r"(?:\s*-\s*){2,}", " - ", new_filename)
     new_filename = re.sub(r"\[\W*]", "", new_filename)
     return re.sub(r"\s{2,}", " ", new_filename).strip()
 
