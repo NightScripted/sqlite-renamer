@@ -1,10 +1,10 @@
 """Safety tests for persisted rename plans and Windows normalization."""
+
 import os
 import tempfile
 import unittest
 from unittest.mock import patch
 
-import config
 from rename_plan import (
     RenameOperation,
     apply_plan,
@@ -17,7 +17,6 @@ from rename_plan import (
 
 
 class TestFilenameSanitization(unittest.TestCase):
-
     def test_strips_control_characters_and_trailing_dot_space(self):
         self.assertEqual(sanitize_filename("Title\x00 .mp4. "), "Title .mp4")
 
@@ -29,7 +28,6 @@ class TestFilenameSanitization(unittest.TestCase):
 
 
 class TestRenamePlan(unittest.TestCase):
-
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
         self.original_cwd = os.getcwd()
@@ -46,7 +44,12 @@ class TestRenamePlan(unittest.TestCase):
     def test_missing_source_and_occupied_destination_block_a_plan(self):
         with open(self.destination, "w", encoding="utf-8") as destination_file:
             destination_file.write("occupied")
-        plan = create_plan((RenameOperation("1", self.source, self.destination), RenameOperation("2", "missing.mp4", "other.mp4")))
+        plan = create_plan(
+            (
+                RenameOperation("1", self.source, self.destination),
+                RenameOperation("2", "missing.mp4", "other.mp4"),
+            )
+        )
         codes = {issue.code for issue in validate_plan(plan)}
         self.assertEqual(codes, {"occupied_destination", "missing_source"})
 
@@ -54,10 +57,12 @@ class TestRenamePlan(unittest.TestCase):
         other_source = os.path.join(self.tempdir.name, "other.mp4")
         with open(other_source, "w", encoding="utf-8") as other_file:
             other_file.write("test")
-        plan = create_plan((
-            RenameOperation("1", self.source, self.destination),
-            RenameOperation("2", other_source, os.path.join(self.tempdir.name, "NEW.mp4")),
-        ))
+        plan = create_plan(
+            (
+                RenameOperation("1", self.source, self.destination),
+                RenameOperation("2", other_source, os.path.join(self.tempdir.name, "NEW.mp4")),
+            )
+        )
         self.assertIn("duplicate_destination", {issue.code for issue in validate_plan(plan)})
 
     def test_write_read_and_apply_require_an_unchanged_valid_plan(self):
@@ -76,10 +81,12 @@ class TestRenamePlan(unittest.TestCase):
         second_destination = os.path.join(self.tempdir.name, "second-new.mp4")
         with open(second_source, "w", encoding="utf-8") as second_file:
             second_file.write("test")
-        plan = create_plan((
-            RenameOperation("1", self.source, self.destination),
-            RenameOperation("2", second_source, second_destination),
-        ))
+        plan = create_plan(
+            (
+                RenameOperation("1", self.source, self.destination),
+                RenameOperation("2", second_source, second_destination),
+            )
+        )
         real_link = os.link
         calls = 0
 
@@ -97,7 +104,13 @@ class TestRenamePlan(unittest.TestCase):
         self.assertFalse(os.path.exists(self.destination))
 
     def test_destination_outside_source_directory_is_blocked(self):
-        plan = create_plan((RenameOperation("1", self.source, os.path.join(self.tempdir.name, "..", "outside.mp4")),))
+        plan = create_plan(
+            (
+                RenameOperation(
+                    "1", self.source, os.path.join(self.tempdir.name, "..", "outside.mp4")
+                ),
+            )
+        )
         self.assertIn("outside_source_directory", {issue.code for issue in validate_plan(plan)})
 
 

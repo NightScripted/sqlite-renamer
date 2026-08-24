@@ -5,8 +5,7 @@ from __future__ import annotations
 import os
 import re
 
-import config
-import db
+from db import Database
 from rename_plan import RenameOperation, sanitize_filename
 from renamer import makeFilename
 
@@ -26,31 +25,45 @@ def _height_label(height: object) -> str:
     return {"2160": "4k", "4320": "8k"}.get(value, "{}p".format(value) if value else "")
 
 
-def discover_operations(template: str, optional_query: str = "", params: tuple = ()) -> list[RenameOperation]:
-    """Query scenes and return candidates without touching the filesystem."""
-    db.cursor.execute(f"{SCENE_QUERY} {optional_query};", params)
+def discover_operations(
+    database: Database,
+    template: str,
+    optional_query: str = "",
+    params: tuple = (),
+    stop_after_first: bool = False,
+) -> list[RenameOperation]:
+    """Query *database* and return candidates without touching the filesystem."""
+    database.cursor.execute(f"{SCENE_QUERY} {optional_query};", params)
     operations: list[RenameOperation] = []
-    for row in db.cursor.fetchall():
+    for row in database.cursor.fetchall():
         scene_id, basename, directory, title, date, studio_id, height = row
         source = os.path.join(str(directory), str(basename))
         extension = os.path.splitext(str(basename))[1]
         scene_info = {
             "title": re.sub(re.escape(extension) + "$", "", title or ""),
             "date": date or "",
-            "performer": db.get_Perf_fromSceneID(str(scene_id)) if "$performer" in template else "",
-            "studio": db.get_Studio_fromID(str(studio_id)) if "$studio" in template and studio_id is not None else "",
+            "performer": database.get_performers_for_scene(str(scene_id))
+            if "$performer" in template
+            else "",
+            "studio": database.get_studio_name(studio_id)
+            if "$studio" in template and studio_id is not None
+            else "",
             "height": _height_label(height),
         }
         stem = makeFilename(scene_info, template)
         if not stem or not stem.strip(".") or not any(char.isalnum() for char in stem):
-            operation = RenameOperation(str(scene_id), source, source, "filename template produced no usable name")
+            operation = RenameOperation(
+                str(scene_id), source, source, "filename template produced no usable name"
+            )
         else:
             try:
                 filename = sanitize_filename(stem + extension)
-                operation = RenameOperation(str(scene_id), source, os.path.join(str(directory), filename))
+                operation = RenameOperation(
+                    str(scene_id), source, os.path.join(str(directory), filename)
+                )
             except ValueError as error:
                 operation = RenameOperation(str(scene_id), source, source, str(error))
         operations.append(operation)
-        if config.STOP_AFTER_FIRST:
+        if stop_after_first:
             break
     return operations

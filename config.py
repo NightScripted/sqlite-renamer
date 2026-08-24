@@ -26,7 +26,7 @@ STOP_AFTER_FIRST = False
 # Personal tag-to-template mappings — change these to match your Stash tags
 # ---------------------------------------------------------------------------
 
-tags_dict = {}
+tags_dict: dict[str, dict[str, str]] = {}
 
 # Optional SQL LIKE filter applied to the folder path in the WHERE clause.
 # Set to "" to process all scenes regardless of path.

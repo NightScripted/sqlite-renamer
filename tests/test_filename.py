@@ -1,6 +1,7 @@
 """
 Tests for makeFilename() in renamer.py.
 """
+
 import unittest
 
 from renamer import makeFilename
@@ -15,7 +16,6 @@ FULL_INFO = {
 
 
 class TestMakeFilename(unittest.TestCase):
-
     def test_all_variables(self):
         result = makeFilename(FULL_INFO, "$date $performer - $title [$studio]")
         self.assertEqual(result, "2016-12-29 Eva Lovia - Her Fantasy Ball [Sneaky Sex]")
@@ -42,6 +42,11 @@ class TestMakeFilename(unittest.TestCase):
         result = makeFilename(info, "$date $performer - $title")
         # Leading "date -" should remain; performer gap should not leave double space
         self.assertNotIn("  ", result)
+        self.assertEqual(result, "2016-12-29 - Her Fantasy Ball")
+
+    def test_missing_middle_variable_collapses_repeated_separators(self):
+        info = {**FULL_INFO, "performer": None}
+        result = makeFilename(info, "$date - $performer - $title")
         self.assertEqual(result, "2016-12-29 - Her Fantasy Ball")
 
     def test_missing_studio_strips_empty_brackets(self):

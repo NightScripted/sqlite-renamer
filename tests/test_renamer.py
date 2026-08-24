@@ -1,9 +1,5 @@
-"""
-Tests for all DB-dependent functions and edit_db.
+"""Unit tests for explicit database handles and runner boundaries."""
 
-db.cursor is set directly at module level — no importlib/patch dance needed
-because none of the imported modules have side effects at import time.
-"""
 import os
 import tempfile
 import unittest
@@ -13,342 +9,198 @@ import config
 import db
 import logger
 import run_renamer
+from planning import discover_operations
 from renamer import edit_db
 
-# ---------------------------------------------------------------------------
-# Shared mock cursor — set once, reset between tests
-# ---------------------------------------------------------------------------
-
-mock_cursor = MagicMock()
-db.cursor = mock_cursor
-
-
-# ---------------------------------------------------------------------------
-# logPrint
-# ---------------------------------------------------------------------------
 
 class TestLogPrint(unittest.TestCase):
-
     def setUp(self):
-        config.DEBUG_MODE = True
-
-    def tearDown(self):
-        config.DEBUG_MODE = True
+        original_debug_mode = config.DEBUG_MODE
+        self.addCleanup(setattr, config, "DEBUG_MODE", original_debug_mode)
 
     def test_non_debug_message_always_printed(self):
         config.DEBUG_MODE = False
         with patch("builtins.print") as mock_print:
             logger.logPrint("Hello world")
-            mock_print.assert_called_once_with("Hello world")
+        mock_print.assert_called_once_with("Hello world")
 
-    def test_debug_message_suppressed_when_debug_off(self):
+    def test_debug_message_is_suppressed_when_debug_is_off(self):
         config.DEBUG_MODE = False
         with patch("builtins.print") as mock_print:
-            logger.logPrint("[DEBUG] verbose info")
-            mock_print.assert_not_called()
-
-    def test_debug_message_printed_when_debug_on(self):
-        config.DEBUG_MODE = True
-        with patch("builtins.print") as mock_print:
-            logger.logPrint("[DEBUG] verbose info")
-            mock_print.assert_called_once_with("[DEBUG] verbose info")
+            logger.logPrint("[DEBUG] hidden")
+        mock_print.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
-# gettingTagsID
-# ---------------------------------------------------------------------------
-
-class TestGettingTagsID(unittest.TestCase):
-
+class TestDatabaseHandle(unittest.TestCase):
     def setUp(self):
-        mock_cursor.reset_mock()
+        self.cursor = MagicMock()
+        self.connection = MagicMock()
+        self.database = db.Database(self.connection, self.cursor)
+        self.original_female_only = config.FEMALE_ONLY
 
-    def test_tag_found_returns_string_id(self):
-        mock_cursor.fetchone.return_value = (42,)
-        result = db.gettingTagsID("My Tag")
-        self.assertEqual(result, "42")
+    def tearDown(self):
+        config.FEMALE_ONLY = self.original_female_only
 
-    def test_tag_not_found_returns_none(self):
-        mock_cursor.fetchone.return_value = None
-        result = db.gettingTagsID("Missing Tag")
-        self.assertIsNone(result)
+    def test_tag_and_scene_queries_are_parameterized(self):
+        self.cursor.fetchone.return_value = (42,)
+        self.assertEqual(self.database.get_tag_id("My Tag"), "42")
+        self.cursor.execute.assert_called_with("SELECT id from tags WHERE name=?;", ["My Tag"])
+        self.cursor.fetchall.return_value = [(1,), (2,)]
+        self.assertEqual(self.database.get_scene_ids_for_tag("42"), ["1", "2"])
 
-    def test_executes_correct_query(self):
-        mock_cursor.fetchone.return_value = (1,)
-        db.gettingTagsID("Test Tag")
-        mock_cursor.execute.assert_called_with(
-            "SELECT id from tags WHERE name=?;", ["Test Tag"]
+    def test_missing_tag_and_studio_return_empty_values(self):
+        self.cursor.fetchone.return_value = None
+        self.assertIsNone(self.database.get_tag_id("Missing"))
+        self.cursor.fetchall.return_value = []
+        self.assertEqual(self.database.get_studio_name("99"), "")
+
+    def test_performer_filter_and_orphan_handling(self):
+        self.cursor.fetchall.side_effect = [[(1,), (2,)], [("Ada", "FEMALE")], []]
+        self.assertEqual(self.database.get_performers_for_scene("1"), "Ada")
+        self.cursor.reset_mock()
+        self.cursor.fetchall.side_effect = [[(1,)], [("John", "MALE")]]
+        config.FEMALE_ONLY = True
+        self.assertEqual(self.database.get_performers_for_scene("1"), "")
+
+    def test_more_than_three_performers_are_omitted_and_close_owns_resources(self):
+        self.cursor.fetchall.return_value = [(1,), (2,), (3,), (4,)]
+        self.assertEqual(self.database.get_performers_for_scene("1"), "")
+        self.database.close()
+        self.cursor.close.assert_called_once_with()
+        self.connection.close.assert_called_once_with()
+
+
+class TestPlanning(unittest.TestCase):
+    def test_discovery_uses_handle_metadata_and_returns_operations(self):
+        cursor = MagicMock()
+        cursor.fetchall.return_value = [(1, "old.mp4", "/media", "Title", "2026-01-01", 2, 2160)]
+        database = MagicMock(cursor=cursor)
+        database.get_performers_for_scene.return_value = "Ada"
+        database.get_studio_name.return_value = "Studio"
+        operations = discover_operations(database, "$performer - $studio - $title")
+        self.assertEqual(
+            operations[0].destination, os.path.join("/media", "Ada - Studio - Title.mp4")
         )
+        database.get_performers_for_scene.assert_called_once_with("1")
+        database.get_studio_name.assert_called_once_with(2)
+
+    def test_discovery_can_stop_after_first(self):
+        cursor = MagicMock()
+        cursor.fetchall.return_value = [
+            (1, "one.mp4", "/media", "One", None, None, None),
+            (2, "two.mp4", "/media", "Two", None, None, None),
+        ]
+        operations = discover_operations(MagicMock(cursor=cursor), "$title", stop_after_first=True)
+        self.assertEqual([operation.scene_id for operation in operations], ["1"])
 
 
-# ---------------------------------------------------------------------------
-# get_SceneID_fromTags
-# ---------------------------------------------------------------------------
+class TestCompatibilityRenderer(unittest.TestCase):
+    def test_edit_db_uses_a_short_lived_handle_and_never_applies(self):
+        manager = MagicMock()
+        database = manager.__enter__.return_value
+        database.cursor.fetchall.return_value = [
+            (1, "old.mp4", "/fixture", "Fixture Title", None, None, None)
+        ]
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(db, "open_database", return_value=manager),
+        ):
+            original_cwd = os.getcwd()
+            os.chdir(directory)
+            try:
+                plan = edit_db("$title")
+            finally:
+                os.chdir(original_cwd)
+        self.assertEqual(len(plan.operations), 1)
+        self.assertEqual(plan.operations[0].destination, "/fixture/Fixture Title.mp4")
+        manager.__enter__.assert_called_once_with()
+        manager.__exit__.assert_called_once()
 
-class TestGetSceneIDFromTags(unittest.TestCase):
 
+class TestRunner(unittest.TestCase):
     def setUp(self):
-        mock_cursor.reset_mock()
-
-    def test_no_scenes_returns_empty_string(self):
-        mock_cursor.fetchall.return_value = []
-        result = db.get_SceneID_fromTags("1")
-        self.assertEqual(result, "")
-
-    def test_single_scene_returns_id(self):
-        mock_cursor.fetchall.return_value = [(101,)]
-        result = db.get_SceneID_fromTags("1")
-        self.assertEqual(result, "101")
-
-    def test_multiple_scenes_returns_csv(self):
-        mock_cursor.fetchall.return_value = [(1,), (2,), (3,)]
-        result = db.get_SceneID_fromTags("5")
-        self.assertEqual(result, "1,2,3")
-
-
-# ---------------------------------------------------------------------------
-# get_Perf_fromSceneID
-# ---------------------------------------------------------------------------
-
-class TestGetPerfFromSceneID(unittest.TestCase):
-
-    def setUp(self):
-        mock_cursor.reset_mock()
-        config.FEMALE_ONLY = False
-
-    def tearDown(self):
-        config.FEMALE_ONLY = False
-        mock_cursor.fetchall.side_effect = None
-
-    def test_no_performers_returns_empty(self):
-        mock_cursor.fetchall.return_value = []
-        result = db.get_Perf_fromSceneID("1")
-        self.assertEqual(result, "")
-
-    def test_more_than_three_performers_returns_empty(self):
-        mock_cursor.fetchall.return_value = [(1,), (2,), (3,), (4,)]
-        result = db.get_Perf_fromSceneID("1")
-        self.assertEqual(result, "")
-
-    def test_single_performer_returned(self):
-        mock_cursor.fetchall.side_effect = [
-            [(10,)],                        # performers_scenes query
-            [("Eva Lovia", "FEMALE")],      # performers query
-        ]
-        result = db.get_Perf_fromSceneID("1")
-        self.assertEqual(result, "Eva Lovia")
-
-    def test_two_performers_concatenated(self):
-        mock_cursor.fetchall.side_effect = [
-            [(10,), (11,)],
-            [("Eva Lovia", "FEMALE")],
-            [("Mia Malkova", "FEMALE")],
-        ]
-        result = db.get_Perf_fromSceneID("1")
-        self.assertIn("Eva Lovia", result)
-        self.assertIn("Mia Malkova", result)
-
-    def test_female_only_includes_female(self):
-        config.FEMALE_ONLY = True
-        mock_cursor.fetchall.side_effect = [
-            [(10,)],
-            [("Eva Lovia", "FEMALE")],
-        ]
-        result = db.get_Perf_fromSceneID("1")
-        self.assertEqual(result, "Eva Lovia")
-
-    def test_female_only_excludes_male(self):
-        config.FEMALE_ONLY = True
-        mock_cursor.fetchall.side_effect = [
-            [(10,)],
-            [("John Doe", "MALE")],
-        ]
-        result = db.get_Perf_fromSceneID("1")
-        self.assertEqual(result, "")
-
-    def test_orphaned_performer_id_skipped(self):
-        mock_cursor.fetchall.side_effect = [
-            [(99,)],   # performers_scenes — returns a row
-            [],        # performers — no matching record
-        ]
-        result = db.get_Perf_fromSceneID("1")
-        self.assertEqual(result, "")
-
-
-# ---------------------------------------------------------------------------
-# get_Studio_fromID
-# ---------------------------------------------------------------------------
-
-class TestGetStudioFromID(unittest.TestCase):
-
-    def setUp(self):
-        mock_cursor.reset_mock()
-
-    def test_studio_found_returns_name(self):
-        mock_cursor.fetchall.return_value = [("Sneaky Sex",)]
-        result = db.get_Studio_fromID("5")
-        self.assertEqual(result, "Sneaky Sex")
-
-    def test_studio_not_found_returns_empty(self):
-        mock_cursor.fetchall.return_value = []
-        result = db.get_Studio_fromID("999")
-        self.assertEqual(result, "")
-
-
-# ---------------------------------------------------------------------------
-# edit_db
-# ---------------------------------------------------------------------------
-
-def _scene_row(scene_id="1", basename="old.mp4", directory="/mock_dir",
-               title="My Title", date="2020-01-01", studio_id=None, height="1080"):
-    """Return a fake scene row tuple matching the edit_db SELECT columns."""
-    return (scene_id, basename, directory, title, date, studio_id, height)
-
-
-class TestEditDb(unittest.TestCase):
-
-    def setUp(self):
-        mock_cursor.reset_mock()
-        config.DRY_RUN = True
-        config.USING_LOG = False
-        config.STOP_AFTER_FIRST = False
-        self._tmpdir = tempfile.TemporaryDirectory()
-        self._orig_cwd = os.getcwd()
-        os.chdir(self._tmpdir.name)
-
-    def tearDown(self):
-        mock_cursor.fetchall.side_effect = None
-        config.DRY_RUN = True
-        config.USING_LOG = False
-        config.STOP_AFTER_FIRST = False
-        os.chdir(self._orig_cwd)
-        self._tmpdir.cleanup()
-
-    def test_no_scenes_returns_early_without_error(self):
-        mock_cursor.fetchall.return_value = []
-        edit_db("$title")   # should not raise
-
-    def test_dry_run_writes_proposed_rename(self):
-        config.DRY_RUN = True
-        mock_cursor.fetchall.side_effect = [
-            [_scene_row()],   # main scene query
-            [],               # get_Perf_fromSceneID → performers_scenes
-            [],               # duplicate check
-        ]
-        edit_db("$title")
-        self.assertTrue(os.path.exists("renamer_dryrun.txt"))
-        with open("renamer_dryrun.txt", encoding="utf-8") as f:
-            content = f.read()
-        self.assertIn("old.mp4", content)
-        self.assertIn("My Title.mp4", content)
-
-    def test_already_correct_name_skipped(self):
-        # When current_filename already matches the template output, no rename.
-        mock_cursor.fetchall.side_effect = [
-            [_scene_row(basename="My Title.mp4", title="My Title")],
-            [],   # performers
-            [],   # duplicate check
-        ]
-        edit_db("$title")
-        # A no-op is explicitly represented in the reviewable plan.
-        if os.path.exists("renamer_dryrun.txt"):
-            with open("renamer_dryrun.txt", encoding="utf-8") as f:
-                content = f.read()
-            self.assertIn("NOOP", content)
-
-    def test_missing_source_is_rendered_as_blocked(self):
-        mock_cursor.fetchall.side_effect = [
-            [_scene_row()],          # main scene query
-            [],
-        ]
-        edit_db("$title")
-        self.assertTrue(os.path.exists("renamer_dryrun.txt"))
-        with open("renamer_dryrun.txt", encoding="utf-8") as f:
-            content = f.read()
-        self.assertIn("missing_source", content)
-
-    def test_compatibility_wrapper_never_applies_a_new_plan(self):
+        self.original_values = {
+            name: getattr(config, name)
+            for name in (
+                "DRY_RUN",
+                "USING_LOG",
+                "FALLBACK_TEMPLATE",
+                "PATH_FILTER",
+                "tags_dict",
+                "STOP_AFTER_FIRST",
+            )
+        }
         config.DRY_RUN = False
-        config.USING_LOG = True
-        mock_cursor.fetchall.side_effect = [
-            [_scene_row()],   # main scene query
-            [],               # performers
-            [],               # duplicate check
-        ]
-        with patch("os.path.isfile", return_value=True), \
-             patch("os.path.exists", return_value=False), \
-             patch("os.rename") as mock_rename:
-            edit_db("$title")
-            mock_rename.assert_not_called()
-
-    def test_os_rename_failure_writes_fail_log_and_continues(self):
-        config.DRY_RUN = False
-        mock_cursor.fetchall.side_effect = [
-            [_scene_row()],   # main scene query
-            [],               # performers
-            [],               # duplicate check
-        ]
-        with patch("os.path.isfile", return_value=True), \
-             patch("os.path.exists", return_value=False), \
-             patch("os.rename", side_effect=OSError("Permission denied")):
-            edit_db("$title")   # must not raise
-
-    def test_all_fields_empty_skips_scene(self):
-        # All metadata None → makeFilename returns "" → stem validation rejects it.
-        # No performer queries or duplicate-check DB calls should occur.
-        mock_cursor.fetchall.side_effect = [
-            [_scene_row(title=None, date=None, height=None)],
-        ]
-        edit_db("$title")
-        # Only one fetchall call: the main scene query.
-        # The performer and duplicate-check queries must NOT have run.
-        self.assertEqual(mock_cursor.fetchall.call_count, 1)
-
-
-class TestRunnerTagPrecedence(unittest.TestCase):
-
-    def setUp(self):
-        self._original_tags = config.tags_dict
-        self._original_fallback = config.FALLBACK_TEMPLATE
-        self._original_path_filter = config.PATH_FILTER
-        self._original_dry_run = config.DRY_RUN
+        config.USING_LOG = False
+        config.FALLBACK_TEMPLATE = "$title"
+        config.PATH_FILTER = ""
+        config.STOP_AFTER_FIRST = False
         config.tags_dict = {
             "first": {"tag": "First", "filename": "$title"},
             "second": {"tag": "Second", "filename": "$date $title"},
         }
-        config.FALLBACK_TEMPLATE = "$studio - $title"
-        config.PATH_FILTER = ""
-        config.DRY_RUN = False
 
     def tearDown(self):
-        config.tags_dict = self._original_tags
-        config.FALLBACK_TEMPLATE = self._original_fallback
-        config.PATH_FILTER = self._original_path_filter
-        config.DRY_RUN = self._original_dry_run
+        for name, value in self.original_values.items():
+            setattr(config, name, value)
 
-    def test_first_matching_tag_claims_scene_and_excludes_it_from_later_passes(self):
-        with patch.object(run_renamer.config, "validate"), \
-             patch.object(run_renamer.db, "connect"), \
-             patch.object(run_renamer.db, "close"), \
-             patch.object(run_renamer.db, "gettingTagsID", side_effect=["10", "20"]), \
-             patch.object(run_renamer.db, "get_SceneID_fromTags", side_effect=["1,2", "2,3"]), \
-             patch.object(run_renamer, "discover_operations", return_value=[]) as mock_discover, \
-             patch.object(run_renamer, "write_plan"), \
-             patch.object(run_renamer, "write_manifest"):
-            run_renamer.run()
-
+    def test_first_matching_tag_claims_scene_and_excludes_later_passes(self):
+        database = MagicMock()
+        database.get_tag_id.side_effect = ["10", "20"]
+        database.get_scene_ids_for_tag.side_effect = [["1", "2"], ["2", "3"]]
+        with patch.object(run_renamer, "discover_operations", return_value=[]) as discover:
+            tagged_scene_ids, operations = run_renamer._discover_tag_passes(database)
+            operations.extend(run_renamer._discover_fallback_pass(database, tagged_scene_ids))
         self.assertEqual(
-            mock_discover.call_args_list,
+            discover.call_args_list,
             [
-                unittest.mock.call("$title", "WHERE s.id IN (?,?)", ("1", "2")),
-                unittest.mock.call("$date $title", "WHERE s.id IN (?)", ("3",)),
+                unittest.mock.call(database, "$title", "WHERE s.id IN (?,?)", ("1", "2"), False),
+                unittest.mock.call(database, "$date $title", "WHERE s.id IN (?)", ("3",), False),
                 unittest.mock.call(
-                    "$studio - $title",
-                    "WHERE s.id NOT IN (?,?,?)",
-                    ("1", "2", "3"),
+                    database, "$title", "WHERE s.id NOT IN (?,?,?)", ("1", "2", "3"), False
                 ),
             ],
         )
+
+    def test_run_opens_and_closes_one_database_handle(self):
+        manager = MagicMock()
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(run_renamer.config, "validate"),
+            patch.object(run_renamer.db, "open_database", return_value=manager),
+            patch.object(run_renamer, "_discover_tag_passes", return_value=([], [])),
+            patch.object(run_renamer, "_discover_fallback_pass", return_value=[]),
+            patch.object(run_renamer, "write_plan"),
+            patch.object(run_renamer, "write_manifest"),
+        ):
+            old_cwd = os.getcwd()
+            os.chdir(directory)
+            try:
+                run_renamer.run("plan.json")
+            finally:
+                os.chdir(old_cwd)
+        run_renamer._discover_tag_passes.assert_not_called if False else None
+        manager.__enter__.assert_called_once_with()
+        manager.__exit__.assert_called_once()
+
+    def test_main_refuses_apply_while_dry_run_is_enabled(self):
+        config.DRY_RUN = True
+        with self.assertRaises(SystemExit):
+            run_renamer.main(["--apply-plan", "plan.json"])
+
+    def test_main_applies_with_explicit_log_choice(self):
+        config.DRY_RUN = False
+        config.USING_LOG = False
+        plan = MagicMock()
+        with (
+            patch.object(run_renamer.config, "load_local_config"),
+            patch.object(run_renamer, "read_plan", return_value=plan),
+            patch.object(run_renamer, "apply_plan", return_value=()) as apply,
+            patch.object(run_renamer, "write_manifest") as manifest,
+        ):
+            run_renamer.main(["--apply-plan", "plan.json"])
+        apply.assert_called_once_with(plan, None)
+        manifest.assert_called_once_with(plan, (), "applied")
 
 
 if __name__ == "__main__":

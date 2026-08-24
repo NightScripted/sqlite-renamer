@@ -14,7 +14,10 @@ from typing import Iterable
 
 PLAN_VERSION = 1
 WINDOWS_RESERVED_NAMES = {
-    "CON", "PRN", "AUX", "NUL",
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
     *(f"COM{number}" for number in range(1, 10)),
     *(f"LPT{number}" for number in range(1, 10)),
 }
@@ -109,22 +112,62 @@ def validate_plan(plan: RenamePlan) -> tuple[PlanIssue, ...]:
     destinations: dict[str, RenameOperation] = {}
     for operation in plan.operations:
         if operation.error:
-            issues.append(PlanIssue(operation.scene_id, operation.source, operation.destination, "invalid_name", operation.error))
+            issues.append(
+                PlanIssue(
+                    operation.scene_id,
+                    operation.source,
+                    operation.destination,
+                    "invalid_name",
+                    operation.error,
+                )
+            )
             continue
         if operation.source == operation.destination:
             continue
         source_directory = os.path.abspath(os.path.dirname(operation.source))
         destination_directory = os.path.abspath(os.path.dirname(operation.destination))
         if source_directory != destination_directory:
-            issues.append(PlanIssue(operation.scene_id, operation.source, operation.destination, "outside_source_directory", "destination must remain in the source directory"))
+            issues.append(
+                PlanIssue(
+                    operation.scene_id,
+                    operation.source,
+                    operation.destination,
+                    "outside_source_directory",
+                    "destination must remain in the source directory",
+                )
+            )
         if not os.path.isfile(operation.source):
-            issues.append(PlanIssue(operation.scene_id, operation.source, operation.destination, "missing_source", "source file does not exist"))
+            issues.append(
+                PlanIssue(
+                    operation.scene_id,
+                    operation.source,
+                    operation.destination,
+                    "missing_source",
+                    "source file does not exist",
+                )
+            )
         if os.path.exists(operation.destination):
-            issues.append(PlanIssue(operation.scene_id, operation.source, operation.destination, "occupied_destination", "destination already exists"))
+            issues.append(
+                PlanIssue(
+                    operation.scene_id,
+                    operation.source,
+                    operation.destination,
+                    "occupied_destination",
+                    "destination already exists",
+                )
+            )
         normalized = os.path.normpath(operation.destination).rstrip(". ").casefold()
         other = destinations.get(normalized)
         if other is not None:
-            issues.append(PlanIssue(operation.scene_id, operation.source, operation.destination, "duplicate_destination", "normalizes to the same destination as scene {}".format(other.scene_id)))
+            issues.append(
+                PlanIssue(
+                    operation.scene_id,
+                    operation.source,
+                    operation.destination,
+                    "duplicate_destination",
+                    "normalizes to the same destination as scene {}".format(other.scene_id),
+                )
+            )
         else:
             destinations[normalized] = operation
     return tuple(issues)
@@ -140,7 +183,9 @@ def render_plan(plan: RenamePlan, issues: Iterable[PlanIssue]) -> str:
         operation_issues = issue_map.get((operation.scene_id, operation.destination), [])
         if operation_issues:
             codes = ", ".join(issue.code for issue in operation_issues)
-            lines.append("BLOCKED [{}] {} -> {}".format(codes, operation.source, operation.destination))
+            lines.append(
+                "BLOCKED [{}] {} -> {}".format(codes, operation.source, operation.destination)
+            )
         elif operation.source == operation.destination:
             lines.append("NOOP {}".format(operation.source))
         else:
@@ -149,37 +194,8 @@ def render_plan(plan: RenamePlan, issues: Iterable[PlanIssue]) -> str:
 
 
 def apply_plan(plan: RenamePlan) -> tuple[PlanIssue, ...]:
-    """Revalidate, atomically move, and recover a digest-valid plan.
+    """Apply through the isolated executor, retaining the historic API."""
+    import config
+    from execution import apply_plan as execute_plan
 
-    Source and destination share a directory by validation contract, so a hard
-    link can claim the destination with no-replace semantics before the source
-    name is removed. If any operation fails, completed operations are restored.
-    """
-    if plan_digest(plan.operations) != plan.digest:
-        raise ValueError("rename-plan changed after validation")
-    issues = validate_plan(plan)
-    if issues:
-        return issues
-    completed: list[RenameOperation] = []
-    for operation in plan.operations:
-        if operation.source != operation.destination:
-            try:
-                os.link(operation.source, operation.destination)
-                os.unlink(operation.source)
-                completed.append(operation)
-            except OSError as error:
-                for completed_operation in reversed(completed):
-                    try:
-                        os.link(completed_operation.destination, completed_operation.source)
-                        os.unlink(completed_operation.destination)
-                    except OSError:
-                        pass
-                return (PlanIssue(operation.scene_id, operation.source, operation.destination, "apply_failed", str(error)),)
-    if completed:
-        import config
-
-        if config.USING_LOG:
-            with open("rename_log.txt", "a", encoding="utf-8") as rename_log:
-                for operation in completed:
-                    rename_log.write("{}|{}|{}\n".format(operation.scene_id, operation.source, operation.destination))
-    return ()
+    return execute_plan(plan, "rename_log.txt" if config.USING_LOG else None)

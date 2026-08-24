@@ -1,134 +1,94 @@
+"""Read-only SQLite access behind an explicit, short-lived handle."""
+
+from __future__ import annotations
+
 import pathlib
 import sqlite3
 import sys
+from typing import Self
 
 import config
 import logger
 
-_connection = None
-cursor = None
 
+class Database:
+    """Own a read-only Stash SQLite connection and its query helpers."""
 
-def connect() -> None:
-    """Open the SQLite connection and set the module-level ``cursor``.
+    def __init__(self, connection: sqlite3.Connection, cursor: sqlite3.Cursor) -> None:
+        self._connection = connection
+        self.cursor = cursor
 
-    Logs a FATAL message and exits if the connection fails.
-    """
-    global _connection, cursor
-    try:
-        uri = pathlib.Path(config.DB_PATH).resolve().as_uri() + "?mode=ro"
-        _connection = sqlite3.connect(uri, uri=True)
-        cursor = _connection.cursor()
-        logger.logPrint("Python successfully connected to SQLite\n")
-    except sqlite3.Error as error:
-        logger.logPrint("FATAL SQLITE Error: {}".format(error))
-        sys.exit(1)
+    @classmethod
+    def open(cls, database_path: str | None = None) -> Self:
+        """Open *database_path* read-only, logging and exiting on SQLite errors."""
+        try:
+            path = pathlib.Path(database_path or config.DB_PATH).resolve()
+            connection = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)
+            logger.logPrint("Python successfully connected to SQLite\n")
+            return cls(connection, connection.cursor())
+        except sqlite3.Error as error:
+            logger.logPrint("FATAL SQLITE Error: {}".format(error))
+            sys.exit(1)
 
+    def close(self) -> None:
+        """Close database resources owned by this handle."""
+        self.cursor.close()
+        self._connection.close()
+        logger.logPrint("The SQLite connection is closed")
 
-def close() -> None:
-    """Close the cursor and the database connection."""
-    global _connection, cursor
-    if cursor:
-        cursor.close()
-    if _connection:
-        _connection.close()
-    logger.logPrint("The SQLite connection is closed")
+    def __enter__(self) -> Self:
+        return self
 
+    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
+        self.close()
 
-def gettingTagsID(name):
-    """Return the tag ID for *name* as a string, or ``None`` if the tag is not found.
+    def get_tag_id(self, name: str) -> str | None:
+        """Return the exact tag ID for *name*, or ``None`` when absent."""
+        self.cursor.execute("SELECT id from tags WHERE name=?;", [name])
+        result = self.cursor.fetchone()
+        try:
+            tag_id = str(result[0])
+            logger.logPrint("[Tag] [{}] {}".format(tag_id, name))
+        except (TypeError, IndexError) as error:
+            tag_id = None
+            logger.logPrint("[Tag] Error when trying to get:{} ({})".format(name, error))
+        return tag_id
 
-    Args:
-        name (str): Exact tag name to look up in the ``tags`` table.
+    def get_scene_ids_for_tag(self, tag_id: str) -> list[str]:
+        """Return the scene IDs carrying *tag_id* in database order."""
+        self.cursor.execute("SELECT scene_id from scenes_tags WHERE tag_id=?;", [tag_id])
+        records = self.cursor.fetchall()
+        logger.logPrint("There is {} scene(s) with the tag_id {}".format(len(records), tag_id))
+        return [str(row[0]) for row in records]
 
-    Returns:
-        str | None: Tag ID string, or ``None`` on no match or lookup error.
-    """
-    cursor.execute("SELECT id from tags WHERE name=?;", [name])
-    result = cursor.fetchone()
-    try:
-        id = str(result[0])
-        logger.logPrint("[Tag] [{}] {}".format(id, name))
-    except (TypeError, IndexError) as e:
-        id = None
-        logger.logPrint("[Tag] Error when trying to get:{} ({})".format(name, e))
-    return id
-
-
-def get_SceneID_fromTags(id):
-    """Return a comma-separated string of scene IDs that carry the given tag.
-
-    Args:
-        id (str): Tag ID to look up in ``scenes_tags``.
-
-    Returns:
-        str: Comma-separated scene IDs (e.g. ``"1,2,3"``), or ``""`` if none.
-    """
-    cursor.execute("SELECT scene_id from scenes_tags WHERE tag_id=?;", [id])
-    record = cursor.fetchall()
-    logger.logPrint("There is {} scene(s) with the tag_id {}".format(len(record), id))
-    array_ID = []
-    for row in record:
-        array_ID.append(row[0])
-    scene_id_list = ",".join(map(str, array_ID))
-    return scene_id_list
-
-
-def get_Perf_fromSceneID(id_scene):
-    """Return a space-trimmed string of performer names for a scene.
-
-    Returns ``""`` if the scene has more than 3 performers. When
-    ``config.FEMALE_ONLY`` is ``True``, only performers whose gender is
-    ``"FEMALE"`` are included. Orphaned performer IDs (no matching row in
-    ``performers``) are silently skipped.
-
-    Args:
-        id_scene (str): Scene ID to query.
-
-    Returns:
-        str: Space-separated performer names, or ``""`` if none qualify.
-    """
-    perf_list = ""
-    cursor.execute(
-        "SELECT performer_id from performers_scenes WHERE scene_id=?;", [id_scene]
-    )
-    record = cursor.fetchall()
-    if len(record) > 3:
-        logger.logPrint("More than 3 performers.")
-    else:
-        perfcount = 0
-        for row in record:
-            perf_id = str(row[0])
-            cursor.execute("SELECT name,gender from performers WHERE id=?;", [perf_id])
-            perf = cursor.fetchall()
-            if not perf:
+    def get_performers_for_scene(self, scene_id: str) -> str:
+        """Return qualifying performer names for a scene, or ``""`` when omitted."""
+        self.cursor.execute(
+            "SELECT performer_id from performers_scenes WHERE scene_id=?;", [scene_id]
+        )
+        records = self.cursor.fetchall()
+        if len(records) > 3:
+            logger.logPrint("More than 3 performers.")
+            return ""
+        performers = []
+        for row in records:
+            self.cursor.execute("SELECT name,gender from performers WHERE id=?;", [str(row[0])])
+            performer = self.cursor.fetchall()
+            if not performer:
                 continue
-            if config.FEMALE_ONLY:
-                # Only take female gender
-                if str(perf[0][1]) == "FEMALE":
-                    perf_list += str(perf[0][0]) + " "
-                    perfcount += 1
-                else:
-                    continue
-            else:
-                perf_list += str(perf[0][0]) + " "
-                perfcount += 1
-    perf_list = perf_list.strip()
-    return perf_list
+            name, gender = performer[0]
+            if config.FEMALE_ONLY and str(gender) != "FEMALE":
+                continue
+            performers.append(str(name))
+        return " ".join(performers)
+
+    def get_studio_name(self, studio_id: str | int) -> str:
+        """Return the studio name for *studio_id*, or ``""`` when absent."""
+        self.cursor.execute("SELECT name from studios WHERE id=?;", [studio_id])
+        record = self.cursor.fetchall()
+        return str(record[0][0]) if record else ""
 
 
-def get_Studio_fromID(id):
-    """Return the studio name for *id*, or ``""`` if the studio is not found.
-
-    Args:
-        id (str | int): Studio ID to look up in the ``studios`` table.
-
-    Returns:
-        str: Studio name, or ``""`` on no match.
-    """
-    cursor.execute("SELECT name from studios WHERE id=?;", [id])
-    record = cursor.fetchall()
-    if not record:
-        return ""
-    studio_name = str(record[0][0])
-    return studio_name
+def open_database(database_path: str | None = None) -> Database:
+    """Open a read-only database handle for one planning operation."""
+    return Database.open(database_path)

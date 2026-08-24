@@ -1,6 +1,14 @@
 # Project Analysis
 
-## Executive Summary
+## Current Reconciliation
+
+> **Historical baseline, reconciled 2026-08-24.** The findings below describe the repository at `dd22a7145af151ee78a2aa0e1315df99b1044483` and must not be read as current status. Phase 0 and Phase 1 safety work, plus Phase 2 implementation, have since resolved `REL-001`, `TEST-001`, `TEST-002`, `ARCH-001`, `DX-001`, and `DX-002`; `PERF-001` now has a synthetic baseline. `GH-001`, the repository-policy portion of `GH-002`, and GitHub homepage metadata remain administrator actions. See `ROADMAP.md` for the current canonical tracker.
+
+## Historical Snapshot: 2026-08-23 Baseline
+
+Everything below preserves the audit's 2026-08-23 evidence and conclusions at `dd22a7145af151ee78a2aa0e1315df99b1044483`; present-tense wording in this snapshot refers only to that revision.
+
+### Executive Summary
 
 `sqlite-renamer` is a small Python command-line utility that reads metadata from a Stash SQLite database and renames media files in place. Its core safety posture is sound: the database is opened read-only, live filesystem mutation is opt-in, SQL values are parameterized, the codebase is compact, and the current 44-test suite passes on Python 3.12–3.14 in GitHub Actions.
 
@@ -8,7 +16,7 @@ Project health is **generally good but not yet release-grade for unattended bulk
 
 The project is mature enough for careful personal use with backups and reviewed dry runs, but remains an early utility rather than a packaged product. Documentation, community files, branch protection, dependency automation, CodeQL, secret scanning, and GPL-3.0-or-later licensing are strong. The recommended direction is incremental: first make planning authoritative and collision-safe, then strengthen platform/schema tests and configuration privacy, then package and release only after those safety properties are verified.
 
-## Audit Baseline
+### Audit Baseline
 
 | Field | Value |
 |---|---|
@@ -29,7 +37,7 @@ The project is mature enough for careful personal use with backups and reviewed 
 
 Available capabilities included read/write repository access, shell, Git, authenticated read-only GitHub API access through `gh`, network research, Python/venv/pip, pytest/coverage, GitHub-hosted CodeQL results, and a dedicated local security-scan workflow. Follow-up validation used the ignored repository `.venv` and installed Ruff, mypy, Bandit, Semgrep, `pip-audit`, Actionlint, and yamllint without modifying dependency manifests. A local CodeQL CLI remained unavailable, but GitHub-hosted CodeQL succeeded. Independent security-review workers were unavailable under this session's delegation policy. A Windows runtime, a privacy-safe Stash fixture, a live Stash database, media fixtures, and repository social-preview/settings UI access were also unavailable.
 
-## Audit Lineage Summary
+### Audit Lineage Summary
 
 The June audit recorded 15 numbered observations, six security observations, six documentation observations, three CI observations, seven additions, and two longer-term directions. Those entries mixed defects, strengths, resolved work, optional enhancements, and product ideas. This re-audit preserves their identifiers in the history table and assigns new stable IDs only to active, distinct findings.
 
@@ -43,7 +51,7 @@ Lifecycle counts for active or historically significant items in this re-audit a
 - Regressed or reopened: 0
 - Unable to re-verify: 0 material historical defects; platform behavior is explicitly limited where no Windows runtime was available
 
-## Scope and Coverage
+### Scope and Coverage
 
 | Surface | Coverage | Notes |
 |---|---|---|
@@ -64,7 +72,7 @@ Lifecycle counts for active or historically significant items in this re-audit a
 
 No production system, external host, discovered credential, private database, or user media was accessed. Repetitive GPL text was verified as GPL version 3 but not line-reviewed as first-party prose.
 
-## Project Overview
+### Project Overview
 
 The intended user is a Stash operator who wants predictable, template-driven filenames derived from scene metadata. Supported filename variables are date, performer, title, studio, and video height. Configured tag passes run in order; the first matching tag claims a scene, followed by an optional fallback pass.
 
@@ -79,7 +87,7 @@ The main data flow is:
 
 The database connection uses SQLite URI `mode=ro`, making the Stash database a read-only metadata source. Filesystem rename is the only privileged operation. Releases and packaging do not yet exist; users run the script from a checkout.
 
-## Repository Structure
+### Repository Structure
 
 - `run_renamer.py` is the command entry point and controls ordered tag/fallback passes.
 - `renamer.py` contains template rendering and the complete query/plan/check/rename loop.
@@ -93,7 +101,7 @@ The database connection uses SQLite URI `mode=ro`, making the Stash database a r
 
 There are no generated sources, migrations owned by this project, package metadata, release tooling, or nested applications.
 
-## Validation Results
+### Validation Results
 
 | Check | Command or evidence | Result | Notes |
 |---|---|---|---|
@@ -130,7 +138,7 @@ The isolated install selected current compatible releases: `progressbar2` 4.6.0,
 
 Follow-up tool versions in the ignored `.venv` were Ruff 0.16.4, mypy 2.3.1, Bandit 1.9.4, pip-audit 2.10.1, Semgrep 1.174.0, Actionlint 1.7.12, and yamllint 1.38.0. These were audit-environment additions only and were not added to project manifests.
 
-## Existing Issue Verification
+### Existing Issue Verification
 
 | ID/Existing Item | Source | Lifecycle | Current Status | Verification | Still Relevant? | Recommended Action |
 |---|---|---|---|---|---|---|
@@ -174,7 +182,7 @@ Source entries naming `AUDIT.md` identify the deleted June 16 source document; i
 | DIR-1 Stash plugin | `AUDIT.md` | Exploratory; `FEAT-005` | Not validated with users | Architecture/upstream reviewed | Explore only | Validate demand and API boundary |
 | DIR-2 generic media renamer | `AUDIT.md` | Deferred/rejected | Poor present strategic fit | Project scope assessed | No | Avoid broadening maintenance surface |
 
-## Finding History
+### Finding History
 
 | ID | Prior Status | Current Status | Change | Evidence |
 |---|---|---|---|---|
@@ -191,7 +199,7 @@ Source entries naming `AUDIT.md` identify the deleted June 16 source document; i
 
 No historical finding was reopened or regressed.
 
-## Active Findings
+### Active Findings
 
 ### Medium
 
@@ -315,7 +323,7 @@ No historical finding was reopened or regressed.
 - **Evidence:** CI uses `actions/checkout@v7` and `actions/setup-python@v7`; repository policy allows all actions and does not require full commit SHAs. GitHub documents both action allowlisting and [full-length SHA enforcement](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository?apiVersion=2022-11-28).
 - **Disposition:** No compromised action or vulnerable workflow was found. Pin reviewed SHAs, automate controlled updates, restrict allowed actions, then enforce SHA pinning (`R2-4`, `G4`).
 
-## Resolved Since Prior Audit
+### Resolved Since Prior Audit
 
 | ID | Previous issue | Resolution evidence | Revision/change | Regression coverage |
 |---|---|---|---|---|
@@ -327,7 +335,7 @@ No historical finding was reopened or regressed.
 | DOC-6 | Missing contribution guidance | `CONTRIBUTING.md` present | Current tree | Documentation review |
 | First-match precedence | Overlapping tags could be processed more than once | First-match claiming implemented | Baseline PR #11 / `dd22a71` | Yes, overlapping-tag test |
 
-## Security and Privacy Assessment
+### Security and Privacy Assessment
 
 ### Validated Security Findings
 
@@ -360,17 +368,17 @@ No historical finding was reopened or regressed.
 - Supplementary Bandit and Semgrep scans reported no findings; Semgrep ran 200 Python/security-audit rules over 21 tracked files with no scan errors.
 - `SECURITY.md` clearly scopes reporting and asks reporters not to share real databases/media/private paths.
 
-## Reliability Assessment
+### Reliability Assessment
 
 The read-only database boundary, default dry-run, destination check, caught `OSError`, and separate error outputs are useful safeguards. The main reliability weakness is semantic drift between preview and application (`REL-001`). The code applies operations one at a time without a prevalidated batch, so interruption can leave a legitimate partial result. Append-only logs do not provide a reliable transaction boundary (`REL-002`).
 
 There is no concurrency or background execution; the script is single-process and synchronous. There is no network/offline behavior. Resource handling is mostly straightforward, although the global connection/cursor has no explicit lifecycle boundary and filesystem operations are not resumable. A future plan/manifest should record pending, applied, skipped, and failed states so an interrupted run can be inspected and safely resumed or reversed.
 
-## Performance Assessment
+### Performance Assessment
 
 No performance bottleneck was measured. `PERF-001` is a credible query-shape concern: `fetchall` retains the full selection, and metadata/duplicate queries multiply with each file. For a personal library this may be entirely adequate. The correct next step is a synthetic, privacy-safe benchmark that records operation count, query count, peak memory, and elapsed time; optimization is not justified until thresholds or user experience demonstrate a problem.
 
-## Architecture Assessment
+### Architecture Assessment
 
 ### Strengths
 
@@ -405,7 +413,7 @@ Large libraries will magnify query count, `fetchall` memory, and partial-run rec
 
 An application rewrite is not warranted.
 
-## Test and Quality Assessment
+### Test and Quality Assessment
 
 The 44 tests are fast, deterministic, and cover filename rendering, DB helpers, failure logging, first-match precedence, and runner behavior. Assertions are generally focused and current CI aligns with the documented command across three supported Python versions.
 
@@ -413,11 +421,11 @@ Qualitative gaps are more important than the nominal 79–81% distinction: no re
 
 The newly available local tools sharpen the maintenance baseline: core Ruff correctness rules, Bandit, Actionlint, Semgrep, and both dependency audits pass. Broader Ruff/format, default mypy, and default yamllint do not all pass because the repository has no owned policy and contains a small amount of style/type debt (`DX-002`). These failures should not be conflated with the validated reliability findings.
 
-## Accessibility and UX Assessment
+### Accessibility and UX Assessment
 
 There is no graphical interface, so screen-reader, focus, touch, contrast, and motion review do not apply. CLI usability is documentation- and output-driven. Current strengths include a safe default, progress indication, explicit logs, and clear README warnings. Current weaknesses are that the dry-run label overstates what was checked, output is split across files without a run identity, and missing tag names are reported piecemeal rather than summarized. A future plan command should end with explicit counts for ready, no-op, blocked, conflicting, and missing-source operations and refuse apply when blocking conflicts exist.
 
-## Documentation Assessment
+### Documentation Assessment
 
 | Document | Status | Problems | Recommended Action |
 |---|---|---|---|
@@ -438,7 +446,7 @@ Recommended final documentation structure:
 - `docs/design/rename-plan.md`: plan schema, validation invariants, and recovery contract when implemented
 - `CHANGELOG.md`: release-facing changes beginning with the first tagged release
 
-## GitHub Repository Assessment
+### GitHub Repository Assessment
 
 The public repository has a useful name, description, seven relevant topics, a strong README, GPL classification, issue/PR templates, contribution/security guidance, Dependabot, CodeQL, and a protected `main` branch. All 11 pull requests are merged; there are no open issues, PRs, releases, tags, packages, security advisories, or security alerts. This is coherent for a young personal utility, though the lack of releases means users consume moving source rather than a versioned artifact.
 
@@ -458,7 +466,7 @@ Observed settings and gaps:
 
 Administrative actions are planned in `ROADMAP.md`; none were performed during this audit.
 
-## Branch Assessment
+### Branch Assessment
 
 The repository already uses the preferred default branch name `main`. There is one local branch, one remote branch, and one worktree. No legacy branch name, merged cleanup branch, unique unmerged work, release branch, dependency branch, or worktree-linked secondary branch exists.
 
@@ -468,7 +476,7 @@ The repository already uses the preferred default branch name `main`. There is o
 
 There are no branches safe to delete, requiring review, or requiring preservation. No default-branch migration is needed.
 
-## Product and Feature Opportunities
+### Product and Feature Opportunities
 
 ### Near-Term Improvements
 
@@ -500,7 +508,7 @@ The best alternative direction is to become a Stash-native renaming planner rath
 - A hosted/cloud service: it adds privacy, authentication, storage, and operating burdens with no demonstrated user need.
 - Premature query optimization or a full rewrite: current performance is unmeasured and incremental extraction is sufficient.
 
-## Recommended Priorities
+### Recommended Priorities
 
 1. Implement `FEAT-001`: a single validated plan used by both preview and apply (`REL-001`, `ARCH-001`).
 2. Replace tracked personal configuration with a safe local boundary (`SEC-3`, `FEAT-003`).
@@ -514,7 +522,7 @@ The best alternative direction is to become a Stash-native renaming planner rath
 10. Consolidate current/historical docs and replace the stale homepage (`DOC-001`, `DOC-002`).
 11. Benchmark before taking performance work (`PERF-001`).
 
-## Limitations
+### Limitations
 
 - No real Stash database or media library was accessed; schema/filesystem integration remains unverified.
 - Windows-specific behavior was inspected statically but not executed on Windows.

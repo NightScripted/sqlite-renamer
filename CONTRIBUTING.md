@@ -14,9 +14,14 @@ Thanks for helping improve SQLite Renamer for Stash. This utility reads a Stash 
 ```bash
 python -m pip install -r requirements.txt -r requirements-dev.txt
 python -m pytest tests/ -v --cov=. --cov-report=term-missing --cov-fail-under=80
+python -m ruff check .
+python -m ruff format --check --exclude README.md .
+python -m mypy
+python -m yamllint .github .yamllint.yml
+actionlint -color .github/workflows/ci.yml
 ```
 
-CI runs the test suite on Python 3.12, 3.13, and 3.14. Add or update tests when behavior changes, especially around filename templates, duplicate detection, path length handling, and dry-run safety.
+CI runs the test suite on Python 3.12, 3.13, and 3.14, and runs the quality checks on Python 3.12. Actionlint v1.7.12 is the repository baseline. Add or update tests when behavior changes, especially around filename templates, duplicate detection, path handling, and dry-run safety.
 
 ## Pull requests
 

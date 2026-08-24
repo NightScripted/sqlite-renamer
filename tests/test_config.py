@@ -1,4 +1,5 @@
 """Tests for private configuration loading and clear validation failures."""
+
 import os
 import tempfile
 import unittest
@@ -7,7 +8,6 @@ import config
 
 
 class TestConfiguration(unittest.TestCase):
-
     def setUp(self):
         self.original_db_path = config.DB_PATH
         self.original_tags = config.tags_dict
