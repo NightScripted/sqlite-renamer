@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 import hashlib
@@ -26,6 +27,8 @@ INVALID_FILENAME_CHARS = re.compile(r'[\\/:"*?<>|#,\x00-\x1f]+')
 
 @dataclass(frozen=True)
 class RenameOperation:
+    """One proposed rename, including a template-rendering error when present."""
+
     scene_id: str
     source: str
     destination: str
@@ -34,6 +37,8 @@ class RenameOperation:
 
 @dataclass(frozen=True)
 class PlanIssue:
+    """A non-mutating safety finding associated with one planned operation."""
+
     scene_id: str
     source: str
     destination: str
@@ -43,6 +48,8 @@ class PlanIssue:
 
 @dataclass(frozen=True)
 class RenamePlan:
+    """An immutable, digest-protected set of proposed rename operations."""
+
     version: int
     created_at: str
     operations: tuple[RenameOperation, ...]
@@ -66,15 +73,18 @@ def sanitize_filename(filename: str) -> str:
 
 
 def _canonical_operations(operations: Iterable[RenameOperation]) -> list[dict[str, str | None]]:
+    """Convert operations to the stable JSON-compatible structure used for hashing."""
     return [asdict(operation) for operation in operations]
 
 
 def plan_digest(operations: Iterable[RenameOperation]) -> str:
+    """Return the stable SHA-256 digest for a sequence of operations."""
     payload = json.dumps(_canonical_operations(operations), sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def create_plan(operations: Iterable[RenameOperation]) -> RenamePlan:
+    """Freeze operations into a timestamped plan with its integrity digest."""
     frozen_operations = tuple(operations)
     return RenamePlan(
         version=PLAN_VERSION,
@@ -96,6 +106,7 @@ def write_plan(plan: RenamePlan, path: str | os.PathLike[str]) -> None:
 
 
 def read_plan(path: str | os.PathLike[str]) -> RenamePlan:
+    """Read and integrity-check a persisted rename plan."""
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     if payload.get("version") != PLAN_VERSION:
         raise ValueError("unsupported rename-plan version")
@@ -174,11 +185,54 @@ def validate_plan(plan: RenamePlan) -> tuple[PlanIssue, ...]:
 
 
 def render_plan(plan: RenamePlan, issues: Iterable[PlanIssue]) -> str:
-    """Render all proposed operations and validation failures for review."""
+    """Render an accessible terminal preview of all operations and blockers."""
+    issue_list = tuple(issues)
     issue_map: dict[tuple[str, str], list[PlanIssue]] = {}
-    for issue in issues:
+    for issue in issue_list:
         issue_map.setdefault((issue.scene_id, issue.destination), []).append(issue)
-    lines = ["rename-plan v{} digest {}".format(plan.version, plan.digest)]
+
+    status_counts: Counter[str] = Counter()
+    blocked_operations: list[tuple[RenameOperation, list[PlanIssue]]] = []
+    for operation in plan.operations:
+        operation_issues = issue_map.get((operation.scene_id, operation.destination), [])
+        if operation_issues:
+            status_counts["blocked"] += 1
+            blocked_operations.append((operation, operation_issues))
+        elif operation.source == operation.destination:
+            status_counts["no-op"] += 1
+        else:
+            status_counts["ready"] += 1
+
+    lines = [
+        "RENAME PLAN PREVIEW",
+        "===================",
+        "Plan: v{}  digest: {}".format(plan.version, plan.digest),
+        "Summary: {} ready, {} no-op, {} blocked ({} issue(s))".format(
+            status_counts["ready"],
+            status_counts["no-op"],
+            status_counts["blocked"],
+            len(issue_list),
+        ),
+    ]
+    if blocked_operations:
+        issue_counts = Counter(issue.code for issue in issue_list)
+        lines.extend(["", "CONFLICTS AND BLOCKERS", "---------------------"])
+        lines.append(
+            "Checks: {}".format(
+                ", ".join(
+                    "{} ({})".format(code, count) for code, count in sorted(issue_counts.items())
+                )
+            )
+        )
+        for operation, operation_issues in blocked_operations:
+            codes = ", ".join(issue.code for issue in operation_issues)
+            lines.append(
+                "BLOCKED [{}] {} -> {}".format(codes, operation.source, operation.destination)
+            )
+            for issue in operation_issues:
+                lines.append("  - {}: {}".format(issue.code, issue.message))
+
+    lines.extend(["", "OPERATIONS", "----------"])
     for operation in plan.operations:
         operation_issues = issue_map.get((operation.scene_id, operation.destination), [])
         if operation_issues:

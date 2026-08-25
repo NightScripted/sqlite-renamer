@@ -1,63 +1,61 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## Project Structure
 
-This is a Python utility that reads a Stash SQLite database and renames media
-files on disk. Keep application modules at the repository root:
+This is a plan-first Python CLI for renaming Stash media files while keeping the
+SQLite database read-only. Root modules form the application:
 
-- `run_renamer.py` coordinates configured tag and fallback passes.
-- `renamer.py` renders filename templates and performs rename or dry-run work.
-- `db.py`, `logger.py`, and `config.py` provide database access, output, and
-  user-editable behavior.
-- `tests/` contains unit tests; `tests/test_filename.py` covers templates and
-  `tests/test_renamer.py` uses mocks for database-dependent behavior.
-- `.github/workflows/ci.yml` defines the CI coverage gate.
+- `run_renamer.py` is the CLI entry point for planning, saved-plan preview,
+  explicit apply, and manifest undo.
+- `planning.py`, `rename_plan.py`, and `execution.py` discover, validate,
+  render, and safely apply immutable rename plans.
+- `db.py` owns short-lived read-only SQLite access; `config.py` loads safe
+  defaults and private local overrides; `run_manifest.py` and `undo.py` record
+  and reverse completed v2 runs.
+- `renamer.py` retains filename rendering compatibility helpers. `tests/`
+  contains unit and temporary SQLite/filesystem integration coverage.
+- `.github/workflows/ci.yml` defines quality, package, and Python 3.12–3.14
+  checks. `benchmarks/` holds privacy-safe planning measurements.
 
-Do not commit generated rename logs, dry-run output, media files, or SQLite
-databases.
+Do not commit databases, media, private configuration, plans, manifests, logs,
+or build output. See `.gitignore` for the complete generated-artifact list.
 
-## Build, Test, and Development Commands
+## Build, Test, and Development
 
-Install runtime and development dependencies:
+Install development tools with `python -m pip install -r requirements-dev.txt`.
+On this checkout, prefer `.venv/bin/python` when available.
 
 ```bash
-python -m pip install -r requirements.txt -r requirements-dev.txt
+.venv/bin/python -m pytest tests/ -v --cov=. --cov-report=term-missing --cov-fail-under=80
+.venv/bin/python -m ruff check .
+.venv/bin/python -m ruff format --check --exclude README.md .
+.venv/bin/python -m mypy
+.venv/bin/python -m yamllint .github .yamllint.yml
+.venv/bin/python -m interrogate .
+.venv/bin/python -m build
 ```
 
-Run the complete verification command used by CI:
+Run `python run_renamer.py` only with safe local configuration. Normal runs
+create a reviewable plan; `--preview-plan PATH` is read-only. Applying or
+undoing requires `DRY_RUN = False` plus the explicit CLI action.
 
-```bash
-python -m pytest tests/ -v --cov=. --cov-report=term-missing --cov-fail-under=80
-```
+## Style and Tests
 
-Run the application with `python run_renamer.py`. Keep `DRY_RUN = True` in
-`config.py` while developing or validating changes; it records proposed paths
-in `renamer_dryrun.txt` without renaming files.
+Use four-space indentation, standard-library imports first, `snake_case`, type
+annotations for new interfaces, and concise docstrings around filesystem or
+database boundaries. Preserve public compatibility names such as
+`makeFilename`. Ruff, mypy, yamllint, Interrogate (80% docstring coverage),
+and Actionlint are the project quality baseline.
 
-## Coding Style & Naming Conventions
+Add focused `tests/test_<area>.py` coverage for every behavior change. Mock
+external boundaries where appropriate; use only invented temporary SQLite and
+media fixtures for integration tests. Preserve plan digest checks, no-replace
+filesystem behavior, read-only database access, and the 80% coverage floor.
 
-Use four-space indentation, standard-library imports before third-party and
-local imports, and clear docstrings for behavior with filesystem or database
-impact. Prefer `snake_case` for new functions and variables, but preserve
-existing public names such as `makeFilename` unless an intentional API change
-is documented. Keep configuration defaults safe and user-editable in
-`config.py`; never embed personal paths, tag names, or private metadata.
+## Commits, Pull Requests, and Safety
 
-## Testing Guidelines
-
-Add focused tests for every behavior change. Test files are named
-`tests/test_<area>.py`, test classes use `Test...`, and methods use `test_...`.
-Mock filesystem and database boundaries rather than requiring a real Stash
-database or media library. Cover dry-run safety, duplicate handling, filename
-templates, and path-length cases when those paths change. The test suite must
-maintain at least 80% coverage.
-
-## Commit & Pull Request Guidelines
-
-Use concise Conventional Commit-style subjects, for example
-`fix: prevent duplicate rename targets` or `docs: clarify dry-run behavior`.
-Keep commits and pull requests focused. In each PR, explain the user-visible
-change, safety effect, and verification performed. Confirm database access
-remains read-only; do not introduce `INSERT`, `UPDATE`, or `DELETE`. For
-filesystem rename changes, include reviewed dry-run evidence with private
-paths and metadata redacted.
+Use focused Conventional Commit-style subjects, for example
+`fix: block occupied rename targets`. In each PR, explain user-visible impact,
+safety effects, and verification. Never introduce `INSERT`, `UPDATE`, or
+`DELETE` against Stash. For rename changes, include redacted plan-preview
+evidence; completed v2 manifests—not `rename_log.txt`—are the safe undo record.

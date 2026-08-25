@@ -162,6 +162,39 @@ class TestRunner(unittest.TestCase):
             ],
         )
 
+    def test_tag_summary_distinguishes_missing_empty_and_selected_rules(self):
+        config.tags_dict = {
+            "missing": {"tag": "Missing", "filename": "$title"},
+            "selected": {"tag": "Selected", "filename": "$title"},
+            "empty": {"tag": "Empty", "filename": "$title"},
+        }
+        database = MagicMock()
+        database.get_tag_id.side_effect = [None, "2", "3"]
+        database.get_scene_ids_for_tag.side_effect = [["1"], []]
+        summaries = []
+        with patch.object(run_renamer, "discover_operations", return_value=[MagicMock()]):
+            run_renamer._discover_tag_passes(database, summaries)
+        rendered = run_renamer.render_configuration_summary(summaries, 2)
+        self.assertEqual(
+            [summary.status for summary in summaries], ["missing", "selected", "empty"]
+        )
+        self.assertIn("MISSING TAG: Missing", rendered)
+        self.assertIn("TAG: Selected (1 matching, 1 claimed, 1 operation(s))", rendered)
+        self.assertIn("EMPTY TAG: Empty", rendered)
+        self.assertIn("Fallback: 2 operation(s) (enabled)", rendered)
+
+    def test_tag_summary_labels_all_tag_claims_when_stopping_after_first(self):
+        config.tags_dict = {"selected": {"tag": "Selected", "filename": "$title"}}
+        config.STOP_AFTER_FIRST = True
+        database = MagicMock()
+        database.get_tag_id.return_value = "2"
+        database.get_scene_ids_for_tag.return_value = ["1", "2"]
+        summaries = []
+        with patch.object(run_renamer, "discover_operations", return_value=[MagicMock()]):
+            run_renamer._discover_tag_passes(database, summaries)
+        rendered = run_renamer.render_configuration_summary(summaries, 0)
+        self.assertIn("TAG: Selected (2 matching, 2 claimed, 1 operation(s))", rendered)
+
     def test_run_opens_and_closes_one_database_handle(self):
         manager = MagicMock()
         with (
@@ -201,6 +234,21 @@ class TestRunner(unittest.TestCase):
             run_renamer.main(["--apply-plan", "plan.json"])
         apply.assert_called_once_with(plan, None)
         manifest.assert_called_once_with(plan, (), "applied", action="apply")
+
+    def test_main_revalidates_and_renders_saved_plan_preview(self):
+        plan = MagicMock()
+        with (
+            patch.object(run_renamer.config, "load_local_config") as load_config,
+            patch.object(run_renamer, "read_plan", return_value=plan),
+            patch.object(run_renamer, "validate_plan", return_value=()) as validate,
+            patch.object(run_renamer, "render_plan", return_value="preview\n") as render,
+            patch.object(run_renamer.logger, "logPrint") as log,
+        ):
+            run_renamer.main(["--preview-plan", "plan.json"])
+        validate.assert_called_once_with(plan)
+        render.assert_called_once_with(plan, ())
+        log.assert_called_once_with("preview")
+        load_config.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -8,7 +8,8 @@ Uses metadata from your [Stash](https://github.com/stashapp/stash) SQLite databa
 **This will make permanent changes to your files on disk.**
 The SQLite database is read-only — the script never writes to it.
 
-> Enable `USING_LOG` to write `rename_log.txt` as a rollback reference.
+> A completed v2 run manifest is the safe undo record. `USING_LOG` optionally
+> writes a readable `rename_log.txt` audit trail; it is not an undo mechanism.
 
 
 ## Requirements
@@ -17,7 +18,7 @@ The SQLite database is read-only — the script never writes to it.
 
 ## Setup
 
-1. Back up your video files before a live run. Enable `USING_LOG` to write `rename_log.txt` as a rollback reference.
+1. Back up your video files before a live run. Keep the v2 run manifest private and retain it if you may need safe undo; optionally enable `USING_LOG` for a readable audit trail.
 2. Copy [`config.local.example.py`](config.local.example.py) to `config.local.py` (ignored by Git), then set `DB_PATH`, `tags_dict`, `FALLBACK_TEMPLATE`, and `PATH_FILTER`.
 3. Alternatively, keep private configuration elsewhere and pass `--config /path/to/config.py`, or set `SQLITE_RENAMER_CONFIG`.
 4. Install the project requirements:
@@ -38,7 +39,15 @@ Run:
 python run_renamer.py
 ```
 
-This writes `renamer_plan.json` and `renamer_dryrun.txt`. The dry run identifies ready, no-op, and blocked operations after checking source files, occupied destinations, directory containment, and collisions across the complete batch. It does not create a run manifest. Set `STOP_AFTER_FIRST = True` to limit each matching tag or fallback pass to one scene.
+This writes `renamer_plan.json` and `renamer_dryrun.txt`. The terminal preview and dry-run file start with a configuration/tag summary, then show ready, no-op, and blocked operations after checking source files, occupied destinations, directory containment, and collisions across the complete batch. Blockers are collected in a dedicated conflict section with their reason; nothing is renamed from this interface. A configured tag that is absent from Stash is listed as `MISSING TAG`; a present tag with no scenes is listed as `EMPTY TAG`; and a tag whose scenes were already claimed by an earlier configured rule is listed as `SHADOWED TAG`. It does not create a run manifest. Set `STOP_AFTER_FIRST = True` to limit each matching tag or fallback pass to one scene.
+
+To recheck a saved plan later without applying it, use:
+
+```bash
+python run_renamer.py --preview-plan renamer_plan.json
+```
+
+It revalidates the current filesystem state and displays the same plan/conflict preview.
 
 For a live run, back up the files, review the dry-run output, then explicitly set `DRY_RUN = False` and run the same command again. To apply a reviewed plan explicitly, run `python run_renamer.py --apply-plan renamer_plan.json`; its digest and filesystem state are revalidated before any rename. A live run never writes to the SQLite database.
 
@@ -74,6 +83,8 @@ Notes:
 
 `tags_dict` maps each Stash tag to a filename template. Tag passes run in dictionary order, and the first matching configured tag claims each scene. Later tag passes skip already claimed scenes; the fallback template applies only to scenes that no configured tag claimed.
 
+Each rule must be a dictionary with non-empty string `tag` and `filename` values. Invalid rules stop planning before the database is opened.
+
 > Tag names below are examples — replace them with your actual Stash tag names.
 
 ```py
@@ -108,13 +119,11 @@ All run artifacts are created next to the command's working directory and are ig
 | File | When written | Contents |
 |---|---|---|
 | `renamer_plan.json` | Every planning run | Versioned plan, timestamp, operations, and SHA-256 digest to review before applying |
-| `renamer_dryrun.txt` | Every planning run; cleared at the start of each dry run | Proposed `old_path -> new_path` renames and `READY`, `NOOP`, or `BLOCKED` status |
+| `renamer_dryrun.txt` | Every planning run; cleared at the start of each dry run | Configuration/tag summary, dedicated conflict details, and proposed `old_path -> new_path` renames with `READY`, `NOOP`, or `BLOCKED` status |
 | `renamer_runs/<uuid>.json` | Non-dry planning, apply, and undo | Atomically written v2 manifest with action, timestamp, plan digest, completion state, per-operation result, completed-target SHA-256, and (for undo) the parent run ID |
-| `rename_log.txt` | Successful live rename when `USING_LOG = True` | `scene_id\|old_path\|new_path` rollback reference |
-| `renamer_duplicate.txt` | Database collision, or an existing destination during a live rename | `scene_id\|current_path\|new_filename` |
-| `renamer_fail.txt` | OS-level rename error | `old_path -> new_path` |
+| `rename_log.txt` | Successful apply when `USING_LOG = True` | Readable `scene_id\|old_path\|new_path` audit trail; use the v2 manifest for undo |
 
-`renamer_runs/` is created only with `DRY_RUN = False`; dry runs create no manifests. Manifests include media paths, metadata-derived filenames, and file hashes, so treat them as private run records and keep them out of version control. `rename_log.txt`, `renamer_duplicate.txt`, and `renamer_fail.txt` append across runs. Archive or clear them before a new live run if you need a per-run record.
+`renamer_runs/` is created only with `DRY_RUN = False`; dry runs create no manifests. Manifests include media paths, metadata-derived filenames, and file hashes, so treat them as private run records and keep them out of version control. `rename_log.txt` appends across successful applies; archive or clear it before a new live run if you need a per-run text record.
 
 ## Development and verification
 
@@ -134,10 +143,13 @@ python -m ruff check .
 python -m ruff format --check --exclude README.md .
 python -m mypy
 python -m yamllint .github .yamllint.yml
+python -m interrogate .
 actionlint -color .github/workflows/ci.yml
 ```
 
-`requirements-dev.txt` pins Ruff, mypy, and yamllint. Install Actionlint v1.7.12 from its release page or with your package manager; CI installs that exact version with `go install`.
+`requirements-dev.txt` pins Ruff, mypy, yamllint, and Interrogate. Interrogate enforces at least 80% docstring coverage. Install Actionlint v1.7.12 from its release page or with your package manager; CI installs that exact version with `go install`.
+
+For contribution, security-reporting, release-preparation, and historical-status guidance, see [`CONTRIBUTING.md`](CONTRIBUTING.md), [`SECURITY.md`](SECURITY.md), [`RELEASING.md`](RELEASING.md), [`ROADMAP.md`](ROADMAP.md), and [`ANALYSIS.md`](ANALYSIS.md).
 
 ## Performance baseline
 

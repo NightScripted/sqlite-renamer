@@ -21,6 +21,7 @@ LEFT JOIN video_files AS vf ON f.id = vf.file_id
 
 
 def _height_label(height: object) -> str:
+    """Normalize a raw video height to the filename-template label."""
     value = "" if height is None else str(height)
     return {"2160": "4k", "4320": "8k"}.get(value, "{}p".format(value) if value else "")
 

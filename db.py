@@ -15,6 +15,7 @@ class Database:
     """Own a read-only Stash SQLite connection and its query helpers."""
 
     def __init__(self, connection: sqlite3.Connection, cursor: sqlite3.Cursor) -> None:
+        """Store an open read-only SQLite connection and its cursor."""
         self._connection = connection
         self.cursor = cursor
 
@@ -37,9 +38,11 @@ class Database:
         logger.logPrint("The SQLite connection is closed")
 
     def __enter__(self) -> Self:
+        """Return this handle for use in a context manager."""
         return self
 
     def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
+        """Close the handle when its context manager exits."""
         self.close()
 
     def get_tag_id(self, name: str) -> str | None:

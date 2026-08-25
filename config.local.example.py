@@ -1,4 +1,5 @@
-# Copy this file to config.local.py, then replace these invented values.
+"""Copy this file to ``config.local.py`` and replace the invented values."""
+
 DB_PATH = r"C:\Users\you\.stash\stash-go.sqlite"
 
 tags_dict = {

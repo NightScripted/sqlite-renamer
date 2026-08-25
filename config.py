@@ -1,5 +1,7 @@
-# Distributable defaults. Put personal values in config.local.py (ignored),
-# pass --config PATH, or set SQLITE_RENAMER_CONFIG. Local values override these.
+"""Distributable defaults; local configuration overrides these values."""
+
+# Put personal values in config.local.py (ignored), pass --config PATH, or set
+# SQLITE_RENAMER_CONFIG. Local values override these defaults.
 import os
 from pathlib import Path
 
@@ -19,7 +21,8 @@ FEMALE_ONLY = False
 # Print verbose [DEBUG] output to stdout
 DEBUG_MODE = True
 
-# Stop edit_db after the first scene (useful for spot-checking a template)
+# Stop each configured tag or fallback pass after its first scene (useful for
+# spot-checking a template).
 STOP_AFTER_FIRST = False
 
 # ---------------------------------------------------------------------------
@@ -66,3 +69,12 @@ def validate() -> None:
         raise ValueError("DB_PATH does not exist or is not a file: {}".format(DB_PATH))
     if not isinstance(tags_dict, dict):
         raise ValueError("tags_dict must be a dictionary")
+    for rule_name, rule in tags_dict.items():
+        if not isinstance(rule, dict):
+            raise ValueError("tag rule {!r} must be a dictionary".format(rule_name))
+        for field in ("tag", "filename"):
+            value = rule.get(field)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(
+                    "tag rule {!r} requires a non-empty {!r} value".format(rule_name, field)
+                )
