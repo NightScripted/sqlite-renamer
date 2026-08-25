@@ -196,7 +196,7 @@ def render_configuration_summary(
 
 
 def run(plan_path: str = PLAN_FILE) -> None:
-    """Create one validated plan, then render or apply that exact plan."""
+    """Create one validated persisted plan and its review report without applying it."""
     config.validate()
     logger.logPrint("Database Path: {}".format(config.DB_PATH))
     _clear_dry_run_log()
