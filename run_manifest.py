@@ -376,6 +376,65 @@ def read_manifest(path: str | Path, *, allow_incomplete: bool = False) -> RunMan
     )
 
 
+def _resume_issue(operation: ManifestOperation, code: str, message: str) -> PlanIssue:
+    """Build a consistently attributed resume-safety issue."""
+    return PlanIssue(operation.scene_id, operation.source, operation.destination, code, message)
+
+
+def _verify_applied_operation(operation: ManifestOperation) -> PlanIssue | None:
+    """Verify that a checkpointed completed destination is still trustworthy."""
+    if not operation.sha256 or not os.path.isfile(operation.destination):
+        return _resume_issue(
+            operation,
+            "resume_missing_applied_destination",
+            "recorded applied destination is unavailable for resume verification",
+        )
+    if file_sha256(operation.destination) != operation.sha256:
+        return _resume_issue(
+            operation,
+            "resume_changed_applied_destination",
+            "recorded applied destination SHA-256 has changed",
+        )
+    return None
+
+
+def _reconcile_pending_operation(
+    recorder: ManifestRecorder, operation: ManifestOperation
+) -> tuple[RenameOperation | None, PlanIssue | None]:
+    """Return safely pending work or record a verified operation completed before interruption."""
+    planned = RenameOperation(
+        operation.scene_id, operation.source, operation.destination, operation.error
+    )
+    if operation.result != "pending" or not operation.source_sha256:
+        return None, _resume_issue(
+            operation,
+            "resume_unknown_operation_state",
+            "operation lacks a safely resumable pending state",
+        )
+    if os.path.isfile(operation.source) and not os.path.exists(operation.destination):
+        if file_sha256(operation.source) == operation.source_sha256:
+            return planned, None
+        return None, _resume_issue(
+            operation,
+            "resume_changed_pending_source",
+            "pending source SHA-256 has changed since the run began",
+        )
+    if not os.path.exists(operation.source) and os.path.isfile(operation.destination):
+        if file_sha256(operation.destination) == operation.source_sha256:
+            recorder.record(planned, "applied")
+            return None, None
+        return None, _resume_issue(
+            operation,
+            "resume_unverified_destination",
+            "destination exists but does not match the recorded source SHA-256",
+        )
+    return None, _resume_issue(
+        operation,
+        "resume_conflicting_paths",
+        "pending operation paths cannot be reconciled safely",
+    )
+
+
 def resume_manifest(path: str | Path) -> tuple[ManifestRecorder, RenamePlan, tuple[PlanIssue, ...]]:
     """Reconcile a v3 incomplete apply record and return only safely pending work."""
     manifest = read_manifest(path, allow_incomplete=True)
@@ -396,80 +455,16 @@ def resume_manifest(path: str | Path) -> tuple[ManifestRecorder, RenamePlan, tup
     for operation in manifest.operations:
         if operation.result == "noop":
             continue
-        planned = RenameOperation(
-            operation.scene_id, operation.source, operation.destination, operation.error
+        operation_issue: PlanIssue | None = (
+            _verify_applied_operation(operation) if operation.result == "applied" else None
         )
-        if operation.result == "applied":
-            if not operation.sha256 or not os.path.isfile(operation.destination):
-                issues.append(
-                    PlanIssue(
-                        operation.scene_id,
-                        operation.destination,
-                        operation.source,
-                        "resume_missing_applied_destination",
-                        "recorded applied destination is unavailable for resume verification",
-                    )
-                )
-            elif file_sha256(operation.destination) != operation.sha256:
-                issues.append(
-                    PlanIssue(
-                        operation.scene_id,
-                        operation.destination,
-                        operation.source,
-                        "resume_changed_applied_destination",
-                        "recorded applied destination SHA-256 has changed",
-                    )
-                )
-            continue
-        if operation.result != "pending" or not operation.source_sha256:
-            issues.append(
-                PlanIssue(
-                    operation.scene_id,
-                    operation.source,
-                    operation.destination,
-                    "resume_unknown_operation_state",
-                    "operation lacks a safely resumable pending state",
-                )
-            )
-            continue
-        source_exists = os.path.isfile(operation.source)
-        destination_exists = os.path.isfile(operation.destination)
-        if source_exists and not os.path.exists(operation.destination):
-            if file_sha256(operation.source) != operation.source_sha256:
-                issues.append(
-                    PlanIssue(
-                        operation.scene_id,
-                        operation.source,
-                        operation.destination,
-                        "resume_changed_pending_source",
-                        "pending source SHA-256 has changed since the run began",
-                    )
-                )
-            else:
-                pending_operations.append(planned)
-        elif not os.path.exists(operation.source) and destination_exists:
-            if file_sha256(operation.destination) == operation.source_sha256:
-                recorder.record(planned, "applied")
-            else:
-                issues.append(
-                    PlanIssue(
-                        operation.scene_id,
-                        operation.source,
-                        operation.destination,
-                        "resume_unverified_destination",
-                        "destination exists but does not match the recorded source SHA-256",
-                    )
-                )
-        else:
-            issues.append(
-                PlanIssue(
-                    operation.scene_id,
-                    operation.source,
-                    operation.destination,
-                    "resume_conflicting_paths",
-                    "pending operation paths cannot be reconciled safely",
-                )
-            )
+        pending_operation: RenameOperation | None = None
+        if operation.result != "applied":
+            pending_operation, operation_issue = _reconcile_pending_operation(recorder, operation)
+        if operation_issue:
+            issues.append(operation_issue)
+        elif pending_operation:
+            pending_operations.append(pending_operation)
 
     plan = create_plan(pending_operations)
     issues.extend(validate_plan(plan))
