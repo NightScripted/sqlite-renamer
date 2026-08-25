@@ -31,6 +31,7 @@ On this checkout, prefer `.venv/bin/python` when available.
 .venv/bin/python -m ruff format --check --exclude README.md .
 .venv/bin/python -m mypy
 .venv/bin/python -m yamllint .github .yamllint.yml
+.venv/bin/python -m interrogate .
 .venv/bin/python -m build
 ```
 
@@ -43,8 +44,8 @@ undoing requires `DRY_RUN = False` plus the explicit CLI action.
 Use four-space indentation, standard-library imports first, `snake_case`, type
 annotations for new interfaces, and concise docstrings around filesystem or
 database boundaries. Preserve public compatibility names such as
-`makeFilename`. Ruff, mypy, yamllint, and Actionlint are the project quality
-baseline.
+`makeFilename`. Ruff, mypy, yamllint, Interrogate (80% docstring coverage),
+and Actionlint are the project quality baseline.
 
 Add focused `tests/test_<area>.py` coverage for every behavior change. Mock
 external boundaries where appropriate; use only invented temporary SQLite and

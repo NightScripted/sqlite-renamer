@@ -18,11 +18,12 @@ python -m ruff check .
 python -m ruff format --check --exclude README.md .
 python -m mypy
 python -m yamllint .github .yamllint.yml
+python -m interrogate .
 actionlint -color .github/workflows/ci.yml
 python -m build
 ```
 
-CI runs the test suite on Python 3.12, 3.13, and 3.14; quality and package checks run on Python 3.12. Actionlint v1.7.12 is the repository baseline. Add or update tests when behavior changes, especially around filename templates, complete-plan validation, configuration/tag summaries, manifest recovery, path handling, and dry-run safety.
+CI runs the test suite on Python 3.12, 3.13, and 3.14; quality and package checks run on Python 3.12. The quality gate requires at least 80% production docstring coverage. Actionlint v1.7.12 is the repository baseline. Add or update tests when behavior changes, especially around filename templates, complete-plan validation, configuration/tag summaries, manifest recovery, path handling, and dry-run safety.
 
 ## Pull requests
 

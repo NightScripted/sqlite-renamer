@@ -12,5 +12,5 @@
 ## Verification
 
 - [ ] `python -m pytest tests/ -v --cov=. --cov-report=term-missing --cov-fail-under=80`
-- [ ] Relevant Ruff, format, mypy, YAML, Actionlint, and package-build checks passed.
+- [ ] Relevant Ruff, format, mypy, YAML, Interrogate, Actionlint, and package-build checks passed.
 - [ ] Documentation and configuration examples remain accurate.

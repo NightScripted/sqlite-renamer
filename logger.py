@@ -1,3 +1,5 @@
+"""Console logging that honors the user-controlled debug setting."""
+
 import config
 
 

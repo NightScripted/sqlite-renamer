@@ -44,7 +44,7 @@ This writes `renamer_plan.json` and `renamer_dryrun.txt`. The terminal preview a
 To recheck a saved plan later without applying it, use:
 
 ```bash
-sqlite-renamer --preview-plan renamer_plan.json
+python run_renamer.py --preview-plan renamer_plan.json
 ```
 
 It revalidates the current filesystem state and displays the same plan/conflict preview.
@@ -143,10 +143,11 @@ python -m ruff check .
 python -m ruff format --check --exclude README.md .
 python -m mypy
 python -m yamllint .github .yamllint.yml
+python -m interrogate .
 actionlint -color .github/workflows/ci.yml
 ```
 
-`requirements-dev.txt` pins Ruff, mypy, and yamllint. Install Actionlint v1.7.12 from its release page or with your package manager; CI installs that exact version with `go install`.
+`requirements-dev.txt` pins Ruff, mypy, yamllint, and Interrogate. Interrogate enforces at least 80% docstring coverage. Install Actionlint v1.7.12 from its release page or with your package manager; CI installs that exact version with `go install`.
 
 For contribution, security-reporting, release-preparation, and historical-status guidance, see [`CONTRIBUTING.md`](CONTRIBUTING.md), [`SECURITY.md`](SECURITY.md), [`RELEASING.md`](RELEASING.md), [`ROADMAP.md`](ROADMAP.md), and [`ANALYSIS.md`](ANALYSIS.md).
 

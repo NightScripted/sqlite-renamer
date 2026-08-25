@@ -1,3 +1,5 @@
+"""Create, preview, apply, and undo safe persisted rename plans."""
+
 import argparse
 from dataclasses import dataclass
 import os

@@ -48,3 +48,8 @@ python_version = "3.12"
 files = ["config.py", "db.py", "execution.py", "logger.py", "planning.py", "rename_plan.py", "renamer.py", "run_manifest.py", "run_renamer.py", "undo.py"]
 check_untyped_defs = true
 warn_unused_ignores = true
+
+[tool.interrogate]
+fail-under = 80
+exclude = [".venv", "build", "dist", "packaged-environment", "tests"]
+verbose = 1

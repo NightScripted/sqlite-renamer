@@ -1,5 +1,7 @@
-# Distributable defaults. Put personal values in config.local.py (ignored),
-# pass --config PATH, or set SQLITE_RENAMER_CONFIG. Local values override these.
+"""Distributable defaults; local configuration overrides these values."""
+
+# Put personal values in config.local.py (ignored), pass --config PATH, or set
+# SQLITE_RENAMER_CONFIG. Local values override these defaults.
 import os
 from pathlib import Path
 

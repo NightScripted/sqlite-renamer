@@ -71,6 +71,7 @@ def benchmark(scene_count: int) -> dict[str, int | float]:
         query_count = 0
 
         def count_query(_: str) -> None:
+            """Count each SQLite statement executed during the measurement."""
             nonlocal query_count
             query_count += 1
 

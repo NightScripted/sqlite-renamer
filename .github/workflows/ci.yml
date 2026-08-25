@@ -34,6 +34,7 @@ jobs:
           python -m ruff format --check --exclude README.md .
           python -m mypy
           python -m yamllint .github .yamllint.yml
+          python -m interrogate .
 
       - name: Check GitHub Actions workflow syntax
         run: |

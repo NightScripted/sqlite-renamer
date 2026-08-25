@@ -27,6 +27,8 @@ INVALID_FILENAME_CHARS = re.compile(r'[\\/:"*?<>|#,\x00-\x1f]+')
 
 @dataclass(frozen=True)
 class RenameOperation:
+    """One proposed rename, including a template-rendering error when present."""
+
     scene_id: str
     source: str
     destination: str
@@ -35,6 +37,8 @@ class RenameOperation:
 
 @dataclass(frozen=True)
 class PlanIssue:
+    """A non-mutating safety finding associated with one planned operation."""
+
     scene_id: str
     source: str
     destination: str
@@ -44,6 +48,8 @@ class PlanIssue:
 
 @dataclass(frozen=True)
 class RenamePlan:
+    """An immutable, digest-protected set of proposed rename operations."""
+
     version: int
     created_at: str
     operations: tuple[RenameOperation, ...]
@@ -67,15 +73,18 @@ def sanitize_filename(filename: str) -> str:
 
 
 def _canonical_operations(operations: Iterable[RenameOperation]) -> list[dict[str, str | None]]:
+    """Convert operations to the stable JSON-compatible structure used for hashing."""
     return [asdict(operation) for operation in operations]
 
 
 def plan_digest(operations: Iterable[RenameOperation]) -> str:
+    """Return the stable SHA-256 digest for a sequence of operations."""
     payload = json.dumps(_canonical_operations(operations), sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def create_plan(operations: Iterable[RenameOperation]) -> RenamePlan:
+    """Freeze operations into a timestamped plan with its integrity digest."""
     frozen_operations = tuple(operations)
     return RenamePlan(
         version=PLAN_VERSION,
@@ -97,6 +106,7 @@ def write_plan(plan: RenamePlan, path: str | os.PathLike[str]) -> None:
 
 
 def read_plan(path: str | os.PathLike[str]) -> RenamePlan:
+    """Read and integrity-check a persisted rename plan."""
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     if payload.get("version") != PLAN_VERSION:
         raise ValueError("unsupported rename-plan version")
