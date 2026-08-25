@@ -11,7 +11,7 @@ SQLite database read-only. Root modules form the application:
   render, and safely apply immutable rename plans.
 - `db.py` owns short-lived read-only SQLite access; `config.py` loads safe
   defaults and private local overrides; `run_manifest.py` and `undo.py` record
-  and reverse completed v2 runs.
+  and reverse completed v2/v3 runs or resume incomplete v3 applies after safe reconciliation.
 - `renamer.py` retains filename rendering compatibility helpers. `tests/`
   contains unit and temporary SQLite/filesystem integration coverage.
 - `.github/workflows/ci.yml` defines quality, package, and Python 3.12–3.14
@@ -36,8 +36,8 @@ On this checkout, prefer `.venv/bin/python` when available.
 ```
 
 Run `python run_renamer.py` only with safe local configuration. Normal runs
-create a reviewable plan; `--preview-plan PATH` is read-only. Applying or
-undoing requires `DRY_RUN = False` plus the explicit CLI action.
+create a reviewable plan; `--preview-plan PATH` is read-only. Applying,
+undoing, or resuming requires `DRY_RUN = False` plus the explicit CLI action.
 
 ## Style and Tests
 
@@ -58,4 +58,4 @@ Use focused Conventional Commit-style subjects, for example
 `fix: block occupied rename targets`. In each PR, explain user-visible impact,
 safety effects, and verification. Never introduce `INSERT`, `UPDATE`, or
 `DELETE` against Stash. For rename changes, include redacted plan-preview
-evidence; completed v2 manifests—not `rename_log.txt`—are the safe undo record.
+evidence; completed manifests—not `rename_log.txt`—are the safe recovery record.

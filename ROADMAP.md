@@ -67,13 +67,13 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R1-2 — Replace mixed append logs with a versioned run manifest
 
-- **Status:** Partially completed 2026-08-24. UUID-named, versioned, atomically written manifests under ignored `renamer_runs/` record the timestamp, plan digest, run state, completion marker, and per-operation result for non-dry planning and digest-valid application. Configuration digest capture, exception/interruption records, resume semantics, and replacement of legacy append logs remain outstanding.
+- **Status:** Completed 2026-08-25. UUID-named v3 manifests under ignored `renamer_runs/` capture private configuration and plan digests, start/update/completion timestamps, immutable plan errors, separate execution errors, per-operation source and completed-target hashes, and results. They are atomically checkpointed before and after every apply/undo mutation; incomplete apply runs reconcile only when paths and hashes prove the intended state. Resume removes a duplicate source only when a failed rollback leaves both paths verified against the saved source hash. The legacy append log remains an optional readable audit export, deliberately not a recovery mechanism.
 - **Source:** `REL-002`, `FEAT-001`; enables `FEAT-002`
 - **Action:** Give each plan/application a run ID and manifest containing schema version, timestamp, configuration/plan digest, source/destination, validation state, apply result, error, and completion marker. Preserve a readable summary/export.
 - **Reason / expected effect:** Makes partial runs, recovery, support, and later undo attributable to one execution.
 - **Preconditions / risk:** `R0-1` plan schema must exist; define safe path retention and avoid logging unnecessary metadata.
 - **Validation:** Interrupted-run simulation, append/resume rules, atomic manifest writes, schema-version tests, and documentation review.
-- **Rollback/recovery:** Do not remove legacy readable logs until parity and a migration/retention decision are verified.
+- **Rollback/recovery:** Manifests are never automatically deleted. Retain them until undo/recovery is no longer needed, then archive or remove them manually; the optional readable log is not used for recovery.
 - **Authority:** Separate implementation approval.
 
 ## Phase 2: Maintainability and Developer Experience
@@ -102,7 +102,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R2-3 — De-duplicate CI and make successful CodeQL required
 
-- **Status:** Implementation and check-name validation completed 2026-08-25; GitHub administration pending. CI runs feature work through pull requests only, limits `push` runs to `main`, and uses ten-minute job timeouts. Requiring the stable CodeQL check remains a separate administrator action.
+- **Status:** Completed 2026-08-25. CI runs feature work through pull requests only, limits `push` runs to `main`, and uses ten-minute job timeouts. `main` now requires the stable `Analyze (actions)` and `Analyze (python)` CodeQL checks from GitHub Actions alongside the Python matrix.
 - **Source:** `DX-001`, `GH-001`
 - **Action:** Limit `push` CI to `main` while retaining pull-request checks, add a bounded timeout, verify stable check names, then add CodeQL to `main` required checks.
 - **Reason / expected effect:** Halves duplicate PR matrix work while ensuring the existing security analysis gates merges.
@@ -113,7 +113,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R2-4 — Harden GitHub Actions supply-chain policy
 
-- **Status:** Workflow implementation and CI validation completed 2026-08-25; GitHub administration pending. Every workflow action is pinned to a reviewed full SHA with a version comment, and existing Dependabot Actions updates remain enabled. Restricting allowed Actions and enforcing SHA pins remain separate administrator actions.
+- **Status:** Completed 2026-08-25. Every workflow action is pinned to a reviewed full SHA with a version comment, and existing Dependabot Actions updates remain enabled. Repository policy now permits GitHub-owned actions only and requires full commit-SHA pins.
 - **Source:** `GH-002`
 - **Action:** Replace action tags with reviewed full commit SHAs plus version comments, configure Dependabot to update them, restrict allowed actions to required GitHub-owned/approved actions, then enable SHA pin enforcement.
 - **Reason / expected effect:** Reduces mutable-reference and unapproved-action risk.
@@ -159,7 +159,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R3-1 — Add safe undo from completed manifests
 
-- **Status:** Completed 2026-08-24. Version 2 apply manifests persist a digest-verified operation record and completed-target SHA-256; `--undo-manifest` reconstructs only successful operations, refuses changed or occupied paths, and writes a linked undo manifest. Broader interruption/resume and configuration-digest work remains in partially completed `R1-2`.
+- **Status:** Completed 2026-08-25. Version 2 and 3 apply manifests persist digest-verified operation records and completed-target SHA-256; `--undo-manifest` reconstructs only successful operations, refuses changed or occupied paths, and writes a linked undo manifest. Version 3 also checkpoints interrupted applies for explicit safe resume.
 - **Source:** `FEAT-002`, `REL-002`
 - **Action:** Generate reverse operations only from successfully applied manifest entries; validate that current paths/hashes or equivalent identities still match before reversing.
 - **Reason / expected effect:** Provides trustworthy recovery instead of asking users to interpret mixed text logs.
@@ -233,13 +233,13 @@ Every documentation mutation above is a separate reviewed Git change. The valida
 |---|---|---|---|---|---|
 | G1 (`DX-001`) | Limit feature-branch CI to PR events; add timeout | Remove duplicate matrices and runaway jobs | Test event behavior on PR and merge | Missed event; revert workflow | Code change approval |
 | G2 (`DOC-002`) | Remove/replace homepage or point to maintained docs; manually inspect social preview | Stop presenting stale thread as authority; improve public presentation | Updated README/destination exists; verify logged-out repo page | Broken link/poor preview; restore prior metadata | Manual GitHub admin + explicit approval |
-| G3 (`GH-001`) | Require stable CodeQL check on `main` | Prevent merges with failed security analysis | Confirm stable check name via test PR | Merge deadlock; remove check using admin recovery | Manual GitHub admin + explicit approval |
-| G4 (`GH-002`) | Restrict actions and require full SHAs after pinning | Supply-chain defense in depth | Inventory/pin/test all actions and Dependabot updates | CI outage; restore prior policy | Workflow change and manual admin + explicit approval |
+| G3 (`GH-001`) | Require stable CodeQL checks on `main` | Completed 2026-08-25: `Analyze (actions)` and `Analyze (python)` gate merges | Verified current GitHub Actions check identities | Merge deadlock; remove checks using admin recovery | Completed with explicit approval |
+| G4 (`GH-002`) | Restrict actions and require full SHAs after pinning | Completed 2026-08-25: GitHub-owned actions only; full SHA pins enforced | Reviewed pinned workflow inventory and policy readback | CI outage; restore prior policy | Completed with explicit approval |
 | G5 (`FEAT-004`) | Publish first tag/release only after safety milestones | Stable, evaluable distribution | Release checklist and clean multi-platform validation | Bad immutable release; deprecate, do not replace | Explicit tag/release approval |
 | G6 (community need) | Add Code of Conduct only if contributor growth warrants it | Complete contributor expectations | Maintainer selects policy and enforcement contact | Policy without operational ownership; revert | Human policy choice |
 | G7 (`DX-002`) | Add configured quality checks to CI after the local baseline passes | Make contributor validation reproducible | Pin/constraint tools, clean local run, and test a deliberate failure | Tool upgrade blocks PRs; revert workflow gate while diagnosing | Workflow change approval; admin approval only if made required |
 
-Issue/PR templates, contribution/security guidance, Dependabot, secret scanning/push protection, private vulnerability reporting, and current branch protection should be kept. Projects require a manual review with a token that has `read:project`; no change is recommended without that inspection. Wiki and Discussions should remain disabled until demand exists. No GitHub mutation occurred during this audit.
+Issue/PR templates, contribution/security guidance, Dependabot, secret scanning/push protection, private vulnerability reporting, and current branch protection should be kept. Projects require a manual review with a token that has `read:project`; no change is recommended without that inspection. Wiki and Discussions should remain disabled until demand exists. The original audit was read-only; its approved G3/G4 hardening actions were completed on 2026-08-25.
 
 ## Branch Cleanup and Migration Plan
 
@@ -277,11 +277,11 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 | R0-2 | Privacy-safe local configuration | `SEC-3`, `FEAT-003` | Complete | Medium | Configuration precedence decision | Phase 0 | No private defaults tracked; clean setup works; missing config fails clearly |
 | R0-3 | Complete Windows filename rules | `BUG-001`, `TEST-002` | Verification pending | Medium | Normalization policy | Phase 0 | Platform rule suite passes; normalization collisions block safely |
 | R1-1 | SQLite/filesystem integration fixture | `TEST-002`, `REL-001` | Complete | Medium | Plan interface | Phase 1 | Real queries and multi-file/collision paths pass in CI |
-| R1-2 | Versioned run manifest | `REL-002`, `FEAT-001` | P1 partial | Medium | R0-1 | Phase 1 | Every run has attributable operation states and completion marker |
+| R1-2 | Versioned run manifest | `REL-002`, `FEAT-001` | Complete | Medium | R0-1 | Phase 1 | Every run has attributable operation states, recovery checkpoints, and a completion marker |
 | R2-1 | Explicit planner/executor/DB boundaries | `ARCH-001` | Complete | Medium | R0-1, R1-1 | Phase 2 | No global cursor required by tests; behavior unchanged |
 | R2-2 | Complete-source coverage gate | `TEST-001` | Complete | Small | Runner tests | Phase 2 | All production modules measured at ≥80% on 3.12–3.14 |
-| R2-3 | CI de-duplication and required CodeQL | `DX-001`, `GH-001` | Implementation complete; admin pending | Small | Stable check-name test | Phase 2 | One PR matrix; main merge matrix; CodeQL gates merges |
-| R2-4 | Actions policy hardening | `GH-002` | Workflow complete; admin pending | Small | Reviewed SHAs/update automation | Phase 2 | All workflows pass under restricted SHA policy |
+| R2-3 | CI de-duplication and required CodeQL | `DX-001`, `GH-001` | Complete | Small | Stable check-name test | Phase 2 | One PR matrix; main merge matrix; CodeQL gates merges |
+| R2-4 | Actions policy hardening | `GH-002` | Complete | Small | Reviewed SHAs/update automation | Phase 2 | All workflows pass under restricted SHA policy |
 | R2-5 | Performance benchmark | `PERF-001` | Complete | Small | Stable fixture/planner | Phase 2 | Repeatable size/query/time/memory baseline and decision threshold |
 | R2-6 | Documentation consolidation | `DOC-002`, `SEC-3` | Complete | Small | Behavior/config changes | Phase 2 | One current tracker; no stale/private setup guidance |
 | R2-7 | Reproducible quality-tool baseline | `DX-002` | Complete | Small | Rule/version policy | Phase 2 | Configured lint, format, type, Actions, and YAML checks pass locally and in CI |
@@ -306,8 +306,7 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 
 ## Recommended Execution Order
 
-1. **Administrator actions, separately approved:** Require the verified CodeQL check on `main`; restrict permitted Actions; then enable full-SHA enforcement. Update the GitHub homepage only after a separately approved public destination decision.
-2. **R0-3:** Run the existing filename rule suite on Windows before describing Windows runtime support as complete.
-3. **R1-2:** Extend the manifest with interruption/exception records, configuration capture, and a deliberate resume/retention contract. Preserve the existing v2 undo preconditions while doing so.
-4. **R3-2:** Prepare a release candidate; publish, tag, or release only after explicit approval and clean matrix/security checks.
-5. **X-1:** Separately validate Stash API/plugin demand and constraints; promote only with evidence.
+1. **R0-3:** Run the existing filename rule suite on Windows before describing Windows runtime support as complete.
+2. **R3-2:** Prepare a release candidate; publish, tag, or release only after explicit approval and clean matrix/security checks.
+3. **G2:** Update the GitHub homepage only after a separately approved public destination decision.
+4. **X-1:** Separately validate Stash API/plugin demand and constraints; promote only with evidence.
