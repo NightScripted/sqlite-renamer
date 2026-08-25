@@ -19,11 +19,50 @@ from rename_plan import (
 
 
 class TestFilenameSanitization(unittest.TestCase):
-    def test_strips_control_characters_and_trailing_dot_space(self):
-        self.assertEqual(sanitize_filename("Title\x00 .mp4. "), "Title .mp4")
+    def test_normalizes_windows_unsafe_characters_and_whitespace(self):
+        cases = (
+            ("Title\x00 .mp4. ", "Title .mp4"),
+            (" Title.mp4", "Title.mp4"),
+            ('Title<>:"/\\|?*#, .mp4', "Title .mp4"),
+        )
+        for source, expected in cases:
+            with self.subTest(source=source):
+                self.assertEqual(sanitize_filename(source), expected)
 
-    def test_rejects_reserved_windows_names_with_extensions(self):
-        for name in ("CON.mp4", "nul", "COM1.txt", "LPT9 "):
+    def test_rejects_all_reserved_windows_names_with_extensions(self):
+        reserved_names = (
+            "CON",
+            "PRN",
+            "AUX",
+            "NUL",
+            *(f"COM{number}" for number in range(1, 10)),
+            *(f"LPT{number}" for number in range(1, 10)),
+            "COM¹",
+            "COM²",
+            "COM³",
+            "LPT¹",
+            "LPT²",
+            "LPT³",
+        )
+        for reserved_name in reserved_names:
+            for suffix in ("", ".mp4", " .txt"):
+                name = reserved_name + suffix
+                with self.subTest(name=name):
+                    with self.assertRaises(ValueError):
+                        sanitize_filename(name)
+
+    @unittest.skipUnless(os.name == "nt", "Windows filesystem verification")
+    def test_sanitized_name_can_be_used_by_the_windows_filesystem(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = os.path.join(directory, "source.mp4")
+            destination = os.path.join(directory, sanitize_filename(" Title\x00 .mp4. "))
+            with open(source, "w", encoding="utf-8") as source_file:
+                source_file.write("test")
+            os.rename(source, destination)
+            self.assertTrue(os.path.isfile(destination))
+
+    def test_rejects_empty_filename_after_normalization(self):
+        for name in (" . ", "\x00"):
             with self.subTest(name=name):
                 with self.assertRaises(ValueError):
                     sanitize_filename(name)
@@ -63,6 +102,18 @@ class TestRenamePlan(unittest.TestCase):
             (
                 RenameOperation("1", self.source, self.destination),
                 RenameOperation("2", other_source, os.path.join(self.tempdir.name, "NEW.mp4")),
+            )
+        )
+        self.assertIn("duplicate_destination", {issue.code for issue in validate_plan(plan)})
+
+    def test_leading_space_normalization_collision_blocks_a_plan(self):
+        other_source = os.path.join(self.tempdir.name, "other.mp4")
+        with open(other_source, "w", encoding="utf-8") as other_file:
+            other_file.write("test")
+        plan = create_plan(
+            (
+                RenameOperation("1", self.source, self.destination),
+                RenameOperation("2", other_source, os.path.join(self.tempdir.name, " new.mp4")),
             )
         )
         self.assertIn("duplicate_destination", {issue.code for issue in validate_plan(plan)})

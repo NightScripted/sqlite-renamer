@@ -115,7 +115,9 @@ class TestCompatibilityRenderer(unittest.TestCase):
             finally:
                 os.chdir(original_cwd)
         self.assertEqual(len(plan.operations), 1)
-        self.assertEqual(plan.operations[0].destination, "/fixture/Fixture Title.mp4")
+        self.assertEqual(
+            plan.operations[0].destination, os.path.join("/fixture", "Fixture Title.mp4")
+        )
         manager.__enter__.assert_called_once_with()
         manager.__exit__.assert_called_once()
 

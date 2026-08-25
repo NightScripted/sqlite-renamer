@@ -21,6 +21,8 @@ WINDOWS_RESERVED_NAMES = {
     "NUL",
     *(f"COM{number}" for number in range(1, 10)),
     *(f"LPT{number}" for number in range(1, 10)),
+    *(f"COM{number}" for number in "¹²³"),
+    *(f"LPT{number}" for number in "¹²³"),
 }
 INVALID_FILENAME_CHARS = re.compile(r'[\\/:"*?<>|#,\x00-\x1f]+')
 
@@ -60,13 +62,14 @@ def sanitize_filename(filename: str) -> str:
     """Return a Windows-safe filename component or raise ``ValueError``.
 
     The existing punctuation policy also strips ``#`` and ``,``. Control
-    characters and trailing periods/spaces are removed. Reserved Windows
-    basenames are rejected rather than silently renamed to an unrelated file.
+    characters plus leading/trailing ASCII spaces and trailing periods are
+    removed. Reserved Windows basenames are rejected rather than silently
+    renamed to an unrelated file.
     """
-    cleaned = INVALID_FILENAME_CHARS.sub("", filename).rstrip(". ")
+    cleaned = INVALID_FILENAME_CHARS.sub("", filename).lstrip(" ").rstrip(". ")
     if not cleaned or not any(character.isalnum() for character in cleaned):
         raise ValueError("filename is empty after Windows normalization")
-    stem = cleaned.split(".", 1)[0].upper()
+    stem = cleaned.split(".", 1)[0].rstrip(" ").upper()
     if stem in WINDOWS_RESERVED_NAMES:
         raise ValueError("filename uses reserved Windows basename: {}".format(stem))
     return cleaned
@@ -115,6 +118,12 @@ def read_plan(path: str | os.PathLike[str]) -> RenamePlan:
     if plan_digest(plan.operations) != plan.digest:
         raise ValueError("rename-plan digest does not match its operations")
     return plan
+
+
+def _normalized_destination(destination: str) -> str:
+    """Return the case-insensitive Windows comparison form for a destination."""
+    parent, filename = os.path.split(os.path.normpath(destination))
+    return os.path.join(parent, filename.lstrip(" ").rstrip(". ")).casefold()
 
 
 def validate_plan(plan: RenamePlan) -> tuple[PlanIssue, ...]:
@@ -167,7 +176,7 @@ def validate_plan(plan: RenamePlan) -> tuple[PlanIssue, ...]:
                     "destination already exists",
                 )
             )
-        normalized = os.path.normpath(operation.destination).rstrip(". ").casefold()
+        normalized = _normalized_destination(operation.destination)
         other = destinations.get(normalized)
         if other is not None:
             issues.append(
