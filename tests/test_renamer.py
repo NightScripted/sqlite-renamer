@@ -99,6 +99,7 @@ class TestPlanning(unittest.TestCase):
 
 class TestCompatibilityRenderer(unittest.TestCase):
     def test_edit_db_uses_a_short_lived_handle_and_never_applies(self):
+        """Keep the compatibility renderer read-only and platform-neutral."""
         manager = MagicMock()
         database = manager.__enter__.return_value
         database.cursor.fetchall.return_value = [

@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 import hashlib
 import json
+import ntpath
 import os
 from pathlib import Path
 import re
@@ -123,7 +124,7 @@ def read_plan(path: str | os.PathLike[str]) -> RenamePlan:
 def _normalized_destination(destination: str) -> str:
     """Return the case-insensitive Windows comparison form for a destination."""
     parent, filename = os.path.split(os.path.normpath(destination))
-    return os.path.join(parent, filename.lstrip(" ").rstrip(". ")).casefold()
+    return ntpath.normcase(os.path.join(parent, filename.lstrip(" ").rstrip(". ")))
 
 
 def _destination_filename_error(destination: str) -> str | None:
