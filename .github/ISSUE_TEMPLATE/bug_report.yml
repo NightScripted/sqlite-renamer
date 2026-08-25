@@ -25,11 +25,11 @@ body:
     id: reproduce
     attributes:
       label: Safe reproduction steps
-      description: Include the relevant template and redacted configuration. State whether this occurred in dry-run or live mode.
+      description: Include the relevant template and redacted configuration. State which command or workflow step produced the issue.
       placeholder: |
         1. Set DRY_RUN = True
         2. Use this redacted template/configuration: ...
-        3. Run python run_renamer.py
+        3. Run python run_renamer.py or sqlite-renamer --preview-plan ...
         4. Observe ...
     validations:
       required: true
@@ -46,6 +46,9 @@ body:
       label: Run mode
       options:
         - Dry run
+        - Saved-plan preview
+        - Plan apply
+        - Manifest undo
         - Live run
         - Not applicable
     validations:

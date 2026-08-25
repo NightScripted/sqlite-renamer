@@ -91,18 +91,18 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R2-2 — Measure all production modules and restore the 80% coverage gate
 
-- **Status:** Completed 2026-08-24. `run_renamer.py` is no longer omitted and the exact coverage command measures every production module at 92.33% on the local Python 3.14 verification run.
+- **Status:** Completed 2026-08-24. `run_renamer.py` is no longer omitted and the exact coverage command measures every production module. The latest local Python 3.14 verification (2026-08-25) passed 51 tests at 91.69% coverage.
 - **Source:** `TEST-001`
 - **Action:** Remove the `run_renamer.py` omit rule, test runner helpers/fallback/dry-run initialization/main boundaries, and keep the threshold at or above 80% across all first-party modules.
 - **Reason / expected effect:** Makes the published quality gate truthful.
 - **Preconditions / risk:** Prefer behavior tests over lines written solely for coverage.
-- **Validation:** The exact CI command reports all five modules and passes at 80% or higher on every supported Python version.
+- **Validation:** The exact CI command reports every production module and passes at 80% or higher on every supported Python version.
 - **Rollback/recovery:** Revert test/config changes if they destabilize CI; never lower the threshold merely to regain green.
 - **Authority:** Separate code/test task.
 
 ### R2-3 — De-duplicate CI and make successful CodeQL required
 
-- **Status:** Implementation completed 2026-08-24; GitHub administration pending. CI now runs feature work through pull requests only, limits `push` runs to `main`, and uses ten-minute job timeouts. Requiring the stable CodeQL check remains a separate administrator action after this PR proves the new check names.
+- **Status:** Implementation and check-name validation completed 2026-08-25; GitHub administration pending. CI runs feature work through pull requests only, limits `push` runs to `main`, and uses ten-minute job timeouts. Requiring the stable CodeQL check remains a separate administrator action.
 - **Source:** `DX-001`, `GH-001`
 - **Action:** Limit `push` CI to `main` while retaining pull-request checks, add a bounded timeout, verify stable check names, then add CodeQL to `main` required checks.
 - **Reason / expected effect:** Halves duplicate PR matrix work while ensuring the existing security analysis gates merges.
@@ -113,7 +113,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R2-4 — Harden GitHub Actions supply-chain policy
 
-- **Status:** Workflow implementation completed 2026-08-24; GitHub administration pending. Every workflow action is pinned to a reviewed full SHA with a version comment, and existing Dependabot Actions updates remain enabled. Restricting allowed Actions and enforcing SHA pins are separate administrator actions after this PR validates the workflow.
+- **Status:** Workflow implementation and CI validation completed 2026-08-25; GitHub administration pending. Every workflow action is pinned to a reviewed full SHA with a version comment, and existing Dependabot Actions updates remain enabled. Restricting allowed Actions and enforcing SHA pins remain separate administrator actions.
 - **Source:** `GH-002`
 - **Action:** Replace action tags with reviewed full commit SHAs plus version comments, configure Dependabot to update them, restrict allowed actions to required GitHub-owned/approved actions, then enable SHA pin enforcement.
 - **Reason / expected effect:** Reduces mutable-reference and unapproved-action risk.
@@ -159,7 +159,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R3-1 — Add safe undo from completed manifests
 
-- **Status:** Completed 2026-08-24. Version 2 apply manifests persist a digest-verified operation record and completed-target SHA-256; `--undo-manifest` reconstructs only successful operations, refuses changed or occupied paths, and writes a linked undo manifest.
+- **Status:** Completed 2026-08-24. Version 2 apply manifests persist a digest-verified operation record and completed-target SHA-256; `--undo-manifest` reconstructs only successful operations, refuses changed or occupied paths, and writes a linked undo manifest. Broader interruption/resume and configuration-digest work remains in partially completed `R1-2`.
 - **Source:** `FEAT-002`, `REL-002`
 - **Action:** Generate reverse operations only from successfully applied manifest entries; validate that current paths/hashes or equivalent identities still match before reversing.
 - **Reason / expected effect:** Provides trustworthy recovery instead of asking users to interpret mixed text logs.
@@ -306,9 +306,8 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 
 ## Recommended Execution Order
 
-1. **Validate this PR's checks:** Confirm the new `Quality` and Python check names and the `main` push/PR event behavior before changing protection.
-2. **Administrator actions, separately approved:** Require the verified CodeQL check on `main`; restrict permitted Actions; then enable full-SHA enforcement. Update the GitHub homepage only after a separately approved public destination decision.
-3. **R0-3:** Run the existing filename rule suite on Windows before describing Windows runtime support as complete.
-4. **R1-2 / R3-1:** Extend manifest interruption/completion semantics, then implement conflict-aware undo only after that contract is trustworthy.
-5. **R3-2:** Prepare packaging and a release candidate; publish/tag only after explicit approval and clean matrix/security checks.
-6. **X-1:** Separately validate Stash API/plugin demand and constraints; promote only with evidence.
+1. **Administrator actions, separately approved:** Require the verified CodeQL check on `main`; restrict permitted Actions; then enable full-SHA enforcement. Update the GitHub homepage only after a separately approved public destination decision.
+2. **R0-3:** Run the existing filename rule suite on Windows before describing Windows runtime support as complete.
+3. **R1-2:** Extend the manifest with interruption/exception records, configuration capture, and a deliberate resume/retention contract. Preserve the existing v2 undo preconditions while doing so.
+4. **R3-2:** Prepare a release candidate; publish, tag, or release only after explicit approval and clean matrix/security checks.
+5. **X-1:** Separately validate Stash API/plugin demand and constraints; promote only with evidence.

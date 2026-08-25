@@ -8,11 +8,11 @@ Run it from the repository root:
 python benchmarks/benchmark_planning.py --sizes 100,1000
 ```
 
-The macOS baseline recorded on 2026-08-24 with Python 3.14.7 was:
+The macOS baseline revalidated on 2026-08-25 with Python 3.14.7 was:
 
 | Scenes | Operations | SQL statements | Elapsed | Peak Python allocation |
 |---:|---:|---:|---:|---:|
-| 100 | 100 | 301 | 0.015448 s | 74,859 bytes |
-| 1,000 | 1,000 | 3,001 | 0.189614 s | 710,996 bytes |
+| 100 | 100 | 301 | 0.016232 s | 75,299 bytes |
+| 1,000 | 1,000 | 3,001 | 0.197082 s | 711,044 bytes |
 
-The result confirms the known `3N + 1` query shape for this metadata-rich template. It is a baseline, not a reason to optimize yet: compare the same command on a representative size before changing the planner, and agree a latency or memory threshold first.
+The result confirms the known `3N + 1` query shape for this metadata-rich template. Elapsed time and peak allocation naturally vary by host and runtime, so compare the same command on a representative size before changing the planner. This is a baseline, not a reason to optimize yet; agree a latency or memory threshold first.

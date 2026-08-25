@@ -19,7 +19,8 @@ FEMALE_ONLY = False
 # Print verbose [DEBUG] output to stdout
 DEBUG_MODE = True
 
-# Stop edit_db after the first scene (useful for spot-checking a template)
+# Stop each configured tag or fallback pass after its first scene (useful for
+# spot-checking a template).
 STOP_AFTER_FIRST = False
 
 # ---------------------------------------------------------------------------

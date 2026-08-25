@@ -2,7 +2,7 @@
 
 ## Current Reconciliation
 
-> **Historical baseline, reconciled 2026-08-24.** The findings below describe the repository at `dd22a7145af151ee78a2aa0e1315df99b1044483` and must not be read as current status. Phase 0 and Phase 1 safety work, plus Phase 2 implementation, have since resolved `REL-001`, `TEST-001`, `TEST-002`, `ARCH-001`, `DX-001`, and `DX-002`; `PERF-001` now has a synthetic baseline. `GH-001`, the repository-policy portion of `GH-002`, and GitHub homepage metadata remain administrator actions. See `ROADMAP.md` for the current canonical tracker.
+> **Historical baseline, reconciled 2026-08-25.** The findings below describe the repository at `dd22a7145af151ee78a2aa0e1315df99b1044483` and must not be read as current status. Phase 0–3 work has since resolved `REL-001`, `TEST-001`, `TEST-002`, `ARCH-001`, `DX-001`, and `DX-002`; added versioned v2 manifest undo, package preparation, and terminal plan/configuration diagnostics; and established a synthetic baseline for `PERF-001`. `R1-2` remains partially complete: interruption/resume semantics and configuration capture are still outstanding. `GH-001`, the repository-policy portion of `GH-002`, and GitHub homepage metadata remain administrator actions. See `ROADMAP.md` for the current canonical tracker.
 
 ## Historical Snapshot: 2026-08-23 Baseline
 
