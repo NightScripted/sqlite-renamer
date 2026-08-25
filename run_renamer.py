@@ -10,11 +10,71 @@ import logger
 from planning import discover_operations
 from execution import apply_plan
 from rename_plan import create_plan, read_plan, render_plan, validate_plan, write_plan
-from run_manifest import write_manifest
-from undo import undo_manifest
+from run_manifest import (
+    configuration_digest,
+    read_manifest,
+    resume_manifest,
+    start_manifest,
+    write_manifest,
+)
+from undo import create_undo_plan
 
 
 PLAN_FILE = "renamer_plan.json"
+
+
+def _current_configuration_digest() -> str:
+    """Hash the active private settings for manifest audit without storing their values."""
+    return configuration_digest(
+        {
+            "DB_PATH": config.DB_PATH,
+            "USING_LOG": config.USING_LOG,
+            "FEMALE_ONLY": config.FEMALE_ONLY,
+            "STOP_AFTER_FIRST": config.STOP_AFTER_FIRST,
+            "tags_dict": config.tags_dict,
+            "PATH_FILTER": config.PATH_FILTER,
+            "FALLBACK_TEMPLATE": config.FALLBACK_TEMPLATE,
+        }
+    )
+
+
+def _apply_with_manifest(
+    plan,
+    *,
+    action: str = "apply",
+    parent_run_id: str | None = None,
+):
+    """Apply one validated plan with an atomic checkpoint before and after each mutation."""
+    configuration = _current_configuration_digest()
+    issues = validate_plan(plan)
+    if issues:
+        manifest = write_manifest(
+            plan,
+            issues,
+            "blocked",
+            action=action,
+            parent_run_id=parent_run_id,
+            configuration=configuration,
+        )
+        return issues, manifest
+    recorder = start_manifest(
+        plan,
+        action=action,
+        parent_run_id=parent_run_id,
+        configuration=configuration,
+    )
+    try:
+        issues = apply_plan(
+            plan,
+            "rename_log.txt" if config.USING_LOG else None,
+            recorder.record,
+        )
+    except BaseException as error:
+        recorder.interrupt(error)
+        raise
+    state = "failed" if issues else "undone" if action == "undo" else "applied"
+    recorder.finalize(state)
+    return issues, recorder.path
 
 
 @dataclass(frozen=True)
@@ -220,7 +280,12 @@ def run(plan_path: str = PLAN_FILE) -> None:
     logger.logPrint(rendered.rstrip())
     logger.logPrint("[PLAN] Wrote {}".format(plan_path))
     if not config.DRY_RUN:
-        manifest = write_manifest(plan, issues, "blocked" if issues else "planned")
+        manifest = write_manifest(
+            plan,
+            issues,
+            "blocked" if issues else "planned",
+            configuration=_current_configuration_digest(),
+        )
         logger.logPrint("[MANIFEST] Wrote {}".format(manifest))
     # Planning never mutates files. A reviewed persisted plan requires the
     # explicit --apply-plan command and DRY_RUN=False configuration.
@@ -238,7 +303,12 @@ def main(argv: list[str] | None = None) -> None:
     action_group.add_argument(
         "--undo-manifest",
         metavar="PATH",
-        help="undo one completed v2 apply manifest after hash precondition checks",
+        help="undo one completed v2/v3 apply manifest after hash precondition checks",
+    )
+    action_group.add_argument(
+        "--resume-manifest",
+        metavar="PATH",
+        help="reconcile and resume one interrupted v3 apply manifest",
     )
     action_group.add_argument(
         "--preview-plan",
@@ -259,22 +329,49 @@ def main(argv: list[str] | None = None) -> None:
             if config.DRY_RUN:
                 parser.error("refusing to apply a plan while DRY_RUN is enabled")
             plan = read_plan(args.apply_plan)
-            issues = apply_plan(plan, "rename_log.txt" if config.USING_LOG else None)
-            write_manifest(plan, issues, "failed" if issues else "applied", action="apply")
+            issues, manifest = _apply_with_manifest(plan)
+            logger.logPrint("[MANIFEST] Wrote {}".format(manifest))
             if issues:
                 parser.error("plan is blocked or changed; regenerate and review it")
+            return
+        if args.resume_manifest:
+            if config.DRY_RUN:
+                parser.error("refusing to resume a manifest while DRY_RUN is enabled")
+            recorder, plan, issues = resume_manifest(args.resume_manifest)
+            if issues:
+                parser.error("resume is blocked by manifest or filesystem preconditions")
+            try:
+                issues = apply_plan(
+                    plan,
+                    "rename_log.txt" if config.USING_LOG else None,
+                    recorder.record,
+                )
+            except BaseException as error:
+                recorder.interrupt(error)
+                raise
+            recorder.finalize("failed" if issues else "applied")
+            logger.logPrint("[MANIFEST] Updated {}".format(recorder.path))
+            if issues:
+                parser.error("resumed plan is blocked or changed; inspect its manifest")
             return
         if args.undo_manifest:
             if config.DRY_RUN:
                 parser.error("refusing to undo a manifest while DRY_RUN is enabled")
-            manifest, plan, issues = undo_manifest(args.undo_manifest)
-            undo_record = write_manifest(
-                plan,
-                issues,
-                "failed" if issues else "undone",
-                action="undo",
-                parent_run_id=manifest.run_id,
-            )
+            manifest = read_manifest(args.undo_manifest)
+            plan, issues = create_undo_plan(manifest)
+            if not issues:
+                issues, undo_record = _apply_with_manifest(
+                    plan, action="undo", parent_run_id=manifest.run_id
+                )
+            else:
+                undo_record = write_manifest(
+                    plan,
+                    issues,
+                    "blocked",
+                    action="undo",
+                    parent_run_id=manifest.run_id,
+                    configuration=_current_configuration_digest(),
+                )
             logger.logPrint("[MANIFEST] Wrote {}".format(undo_record))
             if issues:
                 parser.error("undo is blocked by manifest or filesystem preconditions")

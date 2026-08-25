@@ -1,6 +1,7 @@
 """Unit tests for explicit database handles and runner boundaries."""
 
 import os
+from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
@@ -10,7 +11,9 @@ import db
 import logger
 import run_renamer
 from planning import discover_operations
+from rename_plan import RenameOperation, create_plan
 from renamer import edit_db
+from run_manifest import read_manifest
 
 
 class TestLogPrint(unittest.TestCase):
@@ -228,12 +231,36 @@ class TestRunner(unittest.TestCase):
         with (
             patch.object(run_renamer.config, "load_local_config"),
             patch.object(run_renamer, "read_plan", return_value=plan),
-            patch.object(run_renamer, "apply_plan", return_value=()) as apply,
-            patch.object(run_renamer, "write_manifest") as manifest,
+            patch.object(
+                run_renamer, "_apply_with_manifest", return_value=((), "run.json")
+            ) as apply,
         ):
             run_renamer.main(["--apply-plan", "plan.json"])
-        apply.assert_called_once_with(plan, None)
-        manifest.assert_called_once_with(plan, (), "applied", action="apply")
+        apply.assert_called_once_with(plan)
+
+    def test_apply_with_manifest_records_an_unexpected_interruption(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = os.path.join(directory, "old.mp4")
+            destination = os.path.join(directory, "new.mp4")
+            with open(source, "wb") as source_file:
+                source_file.write(b"contents")
+            plan = create_plan((RenameOperation("1", source, destination),))
+            original_cwd = os.getcwd()
+            original_using_log = config.USING_LOG
+            config.USING_LOG = False
+            os.chdir(directory)
+            try:
+                with patch.object(run_renamer, "apply_plan", side_effect=KeyboardInterrupt):
+                    with self.assertRaises(KeyboardInterrupt):
+                        run_renamer._apply_with_manifest(plan)
+            finally:
+                os.chdir(original_cwd)
+                config.USING_LOG = original_using_log
+            manifest_path = next(iter((Path(directory) / "renamer_runs").glob("*.json")))
+            manifest = read_manifest(manifest_path, allow_incomplete=True)
+            self.assertEqual(manifest.state, "interrupted")
+            self.assertFalse(manifest.complete)
+            self.assertIn("KeyboardInterrupt", manifest.error or "")
 
     def test_main_revalidates_and_renders_saved_plan_preview(self):
         plan = MagicMock()

@@ -8,7 +8,7 @@ Uses metadata from your [Stash](https://github.com/stashapp/stash) SQLite databa
 **This will make permanent changes to your files on disk.**
 The SQLite database is read-only — the script never writes to it.
 
-> A completed v2 run manifest is the safe undo record. `USING_LOG` optionally
+> A completed v2 or v3 run manifest is the safe undo record. `USING_LOG` optionally
 > writes a readable `rename_log.txt` audit trail; it is not an undo mechanism.
 
 
@@ -18,7 +18,7 @@ The SQLite database is read-only — the script never writes to it.
 
 ## Setup
 
-1. Back up your video files before a live run. Keep the v2 run manifest private and retain it if you may need safe undo; optionally enable `USING_LOG` for a readable audit trail.
+1. Back up your video files before a live run. Keep the v3 run manifest private and retain it if you may need safe undo or recovery; optionally enable `USING_LOG` for a readable audit trail.
 2. Copy [`config.local.example.py`](config.local.example.py) to `config.local.py` (ignored by Git), then set `DB_PATH`, `tags_dict`, `FALLBACK_TEMPLATE`, and `PATH_FILTER`.
 3. Alternatively, keep private configuration elsewhere and pass `--config /path/to/config.py`, or set `SQLITE_RENAMER_CONFIG`.
 4. Install the project requirements:
@@ -51,13 +51,21 @@ It revalidates the current filesystem state and displays the same plan/conflict 
 
 For a live run, back up the files, review the dry-run output, then explicitly set `DRY_RUN = False` and run the same command again. To apply a reviewed plan explicitly, run `python run_renamer.py --apply-plan renamer_plan.json`; its digest and filesystem state are revalidated before any rename. A live run never writes to the SQLite database.
 
-To undo one completed v2 apply run, keep `DRY_RUN = False` and pass its run manifest:
+To undo one completed v2 or v3 apply run, keep `DRY_RUN = False` and pass its run manifest:
 
 ```bash
 sqlite-renamer --undo-manifest renamer_runs/<uuid>.json
 ```
 
 Undo re-hashes each applied destination and refuses to replace an occupied original path. It writes a new `undone` manifest linked to the original run. Version 1 manifests lack the required fingerprints and cannot be undone automatically.
+
+If an apply is interrupted, leave its incomplete v3 manifest in place. After reviewing the filesystem, keep `DRY_RUN = False` and use:
+
+```bash
+python run_renamer.py --resume-manifest renamer_runs/<uuid>.json
+```
+
+Resume verifies every recorded completed destination and every pending source against its saved SHA-256 before applying only the remaining operations. It refuses changed, missing, or conflicting paths; it never regenerates the plan or rereads tag rules.
 
 ## Filename Templates
 
@@ -120,10 +128,10 @@ All run artifacts are created next to the command's working directory and are ig
 |---|---|---|
 | `renamer_plan.json` | Every planning run | Versioned plan, timestamp, operations, and SHA-256 digest to review before applying |
 | `renamer_dryrun.txt` | Every planning run; cleared at the start of each dry run | Configuration/tag summary, dedicated conflict details, and proposed `old_path -> new_path` renames with `READY`, `NOOP`, or `BLOCKED` status |
-| `renamer_runs/<uuid>.json` | Non-dry planning, apply, and undo | Atomically written v2 manifest with action, timestamp, plan digest, completion state, per-operation result, completed-target SHA-256, and (for undo) the parent run ID |
-| `rename_log.txt` | Successful apply when `USING_LOG = True` | Readable `scene_id\|old_path\|new_path` audit trail; use the v2 manifest for undo |
+| `renamer_runs/<uuid>.json` | Non-dry planning, apply, undo, and resumed apply | Atomically written v3 manifest with action, timestamps, configuration/plan digests, completion state, exception record, per-operation result, source/completed-target SHA-256, and (for undo) the parent run ID |
+| `rename_log.txt` | Successful apply when `USING_LOG = True` | Readable `scene_id\|old_path\|new_path` audit trail; use the v2/v3 manifest for recovery |
 
-`renamer_runs/` is created only with `DRY_RUN = False`; dry runs create no manifests. Manifests include media paths, metadata-derived filenames, and file hashes, so treat them as private run records and keep them out of version control. `rename_log.txt` appends across successful applies; archive or clear it before a new live run if you need a per-run text record.
+`renamer_runs/` is created only with `DRY_RUN = False`; dry runs create no manifests. Manifests include media paths, metadata-derived filenames, and file hashes, so treat them as private run records and keep them out of version control. The utility never deletes manifests: retain an apply manifest until safe undo/recovery is no longer needed, then archive or remove it manually. `rename_log.txt` remains an optional readable audit trail, not a recovery record.
 
 ## Development and verification
 

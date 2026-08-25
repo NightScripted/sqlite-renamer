@@ -27,4 +27,4 @@ CI runs the test suite on Python 3.12, 3.13, and 3.14; quality and package check
 
 ## Pull requests
 
-Keep each pull request focused. Explain the user-visible change, filesystem or database safety impact, and verification performed. If a change affects a live rename path, include relevant plan-preview evidence with private paths and metadata redacted. Do not treat `rename_log.txt` as an undo facility; safe undo depends on a completed v2 manifest.
+Keep each pull request focused. Explain the user-visible change, filesystem or database safety impact, and verification performed. If a change affects a live rename path, include relevant plan-preview evidence with private paths and metadata redacted. Do not treat `rename_log.txt` as an undo or recovery facility; safe undo depends on a completed v2/v3 manifest and interrupted v3 applies resume only through their recorded preconditions.

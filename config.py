@@ -8,7 +8,7 @@ from pathlib import Path
 # Path to your Stash SQLite database. Required in local configuration.
 DB_PATH = ""
 
-# Write rename_log.txt so you can revert renames if needed
+# Write rename_log.txt as a readable audit trail; manifests provide safe recovery.
 USING_LOG = True
 
 # DRY_RUN = True → no files are modified; proposed renames go to renamer_dryrun.txt
