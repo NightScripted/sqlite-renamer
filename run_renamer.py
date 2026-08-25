@@ -184,7 +184,7 @@ def render_configuration_summary(
                 )
             else:
                 lines.append(
-                    "TAG: {} ({} matching, {} selected, {} operation(s))".format(
+                    "TAG: {} ({} matching, {} claimed, {} operation(s))".format(
                         summary.name,
                         summary.matching_scene_count,
                         summary.claimed_scene_count,
