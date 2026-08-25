@@ -3,7 +3,7 @@ import tempfile
 import unittest
 
 from rename_plan import RenameOperation, create_plan
-from run_manifest import MANIFEST_VERSION, write_manifest
+from run_manifest import MANIFEST_VERSION, read_manifest, write_manifest
 
 
 class TestRunManifest(unittest.TestCase):
@@ -17,3 +17,6 @@ class TestRunManifest(unittest.TestCase):
             self.assertEqual(payload["plan_digest"], plan.digest)
             self.assertEqual(payload["operations"][0]["result"], "planned")
             self.assertFalse(list(path.parent.glob("*.tmp")))
+            manifest = read_manifest(path)
+            self.assertEqual(manifest.action, "plan")
+            self.assertIsNone(manifest.operations[0].sha256)

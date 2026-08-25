@@ -200,7 +200,7 @@ class TestRunner(unittest.TestCase):
         ):
             run_renamer.main(["--apply-plan", "plan.json"])
         apply.assert_called_once_with(plan, None)
-        manifest.assert_called_once_with(plan, (), "applied")
+        manifest.assert_called_once_with(plan, (), "applied", action="apply")
 
 
 if __name__ == "__main__":
