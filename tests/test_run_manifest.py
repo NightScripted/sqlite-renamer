@@ -151,3 +151,52 @@ class TestRunManifest(unittest.TestCase):
             self.assertEqual(
                 [operation.result for operation in completed.operations], ["applied", "applied"]
             )
+
+    def test_failed_rollback_reconciles_verified_applied_operation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            first_source = os.path.join(directory, "first-old.mp4")
+            first_destination = os.path.join(directory, "first-new.mp4")
+            second_source = os.path.join(directory, "second-old.mp4")
+            second_destination = os.path.join(directory, "second-new.mp4")
+            for path in (first_source, second_source):
+                with open(path, "wb") as source_file:
+                    source_file.write(path.encode("utf-8"))
+            plan = create_plan(
+                (
+                    RenameOperation("1", first_source, first_destination),
+                    RenameOperation("2", second_source, second_destination),
+                )
+            )
+            recorder = start_manifest(plan, directory)
+            real_link = os.link
+            calls = 0
+
+            def fail_claim_and_rollback(source, destination):
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    raise OSError("simulated apply failure")
+                if calls == 3:
+                    raise OSError("simulated rollback failure")
+                return real_link(source, destination)
+
+            with patch("execution.os.link", side_effect=fail_claim_and_rollback):
+                issues = apply_plan(plan, progress=recorder.record)
+            recorder.fail(issues)
+
+            failed = read_manifest(recorder.path, allow_incomplete=True)
+            self.assertEqual(
+                [operation.result for operation in failed.operations], ["rollback_failed", "failed"]
+            )
+
+            resumed_recorder, resumed_plan, resume_issues = resume_manifest(recorder.path)
+            self.assertEqual(resume_issues, ())
+            self.assertEqual([operation.scene_id for operation in resumed_plan.operations], ["2"])
+            self.assertEqual(apply_plan(resumed_plan, progress=resumed_recorder.record), ())
+            resumed_recorder.finalize("applied")
+
+            completed = read_manifest(recorder.path)
+            self.assertTrue(completed.complete)
+            self.assertEqual(
+                [operation.result for operation in completed.operations], ["applied", "applied"]
+            )

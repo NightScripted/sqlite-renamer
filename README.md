@@ -65,7 +65,7 @@ If an apply is interrupted or fails after safely rolling back earlier operations
 python run_renamer.py --resume-manifest renamer_runs/<uuid>.json
 ```
 
-Resume verifies every recorded completed destination and every pending or rolled-back source against its saved SHA-256 before applying only the remaining work. It refuses changed, missing, or conflicting paths; it never regenerates the plan or rereads tag rules.
+Resume verifies every recorded completed destination and every pending or rollback-related source against its saved SHA-256 before applying only the remaining work. It refuses changed, missing, or conflicting paths; it never regenerates the plan or rereads tag rules.
 
 ## Filename Templates
 

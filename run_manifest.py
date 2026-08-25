@@ -413,7 +413,10 @@ def _reconcile_retryable_operation(
     planned = RenameOperation(
         operation.scene_id, operation.source, operation.destination, operation.error
     )
-    if operation.result not in {"pending", "failed", "rolled_back"} or not operation.source_sha256:
+    if (
+        operation.result not in {"pending", "failed", "rolled_back", "rollback_failed"}
+        or not operation.source_sha256
+    ):
         return None, _resume_issue(
             operation,
             "resume_unknown_operation_state",
