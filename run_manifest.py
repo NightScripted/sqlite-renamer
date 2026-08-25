@@ -28,7 +28,7 @@ MANIFEST_ACTIONS = {"plan", "apply", "undo"}
 
 @dataclass(frozen=True)
 class ManifestOperation:
-    """One persisted operation result with pre- and post-operation hashes."""
+    """One persisted plan operation with execution status and content hashes."""
 
     scene_id: str
     source: str
@@ -37,6 +37,7 @@ class ManifestOperation:
     result: str
     sha256: str | None
     source_sha256: str | None = None
+    execution_error: str | None = None
 
 
 @dataclass(frozen=True)
@@ -102,6 +103,7 @@ def _manifest_payload(manifest: RunManifest) -> dict[str, object]:
                 "result": operation.result,
                 "sha256": operation.sha256,
                 "source_sha256": operation.source_sha256,
+                "execution_error": operation.execution_error,
             }
             for operation in manifest.operations
         ],
@@ -224,7 +226,7 @@ class ManifestRecorder:
                     replace(
                         recorded,
                         result=completed_result,
-                        error=error if error is not None else recorded.error,
+                        execution_error=error,
                         sha256=file_sha256(completed_target) if completed_target else None,
                     )
                 )
@@ -242,6 +244,11 @@ class ManifestRecorder:
     def finalize(self, state: str, error: str | None = None) -> None:
         """Persist a completed, terminal operation outcome."""
         self._persist(state=state, complete=True, error=error, update_error=error is not None)
+
+    def fail(self, issues: tuple[PlanIssue, ...]) -> None:
+        """Keep a recoverable apply failure incomplete for later reconciliation."""
+        error = "; ".join("{}: {}".format(issue.code, issue.message) for issue in issues)
+        self._persist(state="failed", complete=False, error=error, update_error=True)
 
     def interrupt(self, error: BaseException) -> None:
         """Persist an incomplete checkpoint before propagating an interruption or exception."""
@@ -347,6 +354,7 @@ def read_manifest(path: str | Path, *, allow_incomplete: bool = False) -> RunMan
             operation["result"],
             operation.get("sha256"),
             operation.get("source_sha256"),
+            operation.get("execution_error"),
         )
         for operation in payload.get("operations", [])
     )
@@ -398,18 +406,18 @@ def _verify_applied_operation(operation: ManifestOperation) -> PlanIssue | None:
     return None
 
 
-def _reconcile_pending_operation(
+def _reconcile_retryable_operation(
     recorder: ManifestRecorder, operation: ManifestOperation
 ) -> tuple[RenameOperation | None, PlanIssue | None]:
-    """Return safely pending work or record a verified operation completed before interruption."""
+    """Return safely retryable work or record a verified operation completed before interruption."""
     planned = RenameOperation(
         operation.scene_id, operation.source, operation.destination, operation.error
     )
-    if operation.result != "pending" or not operation.source_sha256:
+    if operation.result not in {"pending", "failed", "rolled_back"} or not operation.source_sha256:
         return None, _resume_issue(
             operation,
             "resume_unknown_operation_state",
-            "operation lacks a safely resumable pending state",
+            "operation lacks a safely resumable retry state",
         )
     if os.path.isfile(operation.source) and not os.path.exists(operation.destination):
         if file_sha256(operation.source) == operation.source_sha256:
@@ -460,7 +468,7 @@ def resume_manifest(path: str | Path) -> tuple[ManifestRecorder, RenamePlan, tup
         )
         pending_operation: RenameOperation | None = None
         if operation.result != "applied":
-            pending_operation, operation_issue = _reconcile_pending_operation(recorder, operation)
+            pending_operation, operation_issue = _reconcile_retryable_operation(recorder, operation)
         if operation_issue:
             issues.append(operation_issue)
         elif pending_operation:

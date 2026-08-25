@@ -3,13 +3,22 @@
 import argparse
 from dataclasses import dataclass
 import os
+from pathlib import Path
 
 import config
 import db
 import logger
 from planning import discover_operations
 from execution import apply_plan
-from rename_plan import create_plan, read_plan, render_plan, validate_plan, write_plan
+from rename_plan import (
+    PlanIssue,
+    RenamePlan,
+    create_plan,
+    read_plan,
+    render_plan,
+    validate_plan,
+    write_plan,
+)
 from run_manifest import (
     configuration_digest,
     read_manifest,
@@ -39,11 +48,11 @@ def _current_configuration_digest() -> str:
 
 
 def _apply_with_manifest(
-    plan,
+    plan: RenamePlan,
     *,
     action: str = "apply",
     parent_run_id: str | None = None,
-):
+) -> tuple[tuple[PlanIssue, ...], Path]:
     """Apply one validated plan with an atomic checkpoint before and after each mutation."""
     configuration = _current_configuration_digest()
     issues = validate_plan(plan)
@@ -72,8 +81,10 @@ def _apply_with_manifest(
     except BaseException as error:
         recorder.interrupt(error)
         raise
-    state = "failed" if issues else "undone" if action == "undo" else "applied"
-    recorder.finalize(state)
+    if issues and action == "apply":
+        recorder.fail(issues)
+    else:
+        recorder.finalize("failed" if issues else "undone" if action == "undo" else "applied")
     return issues, recorder.path
 
 
@@ -329,8 +340,8 @@ def main(argv: list[str] | None = None) -> None:
             if config.DRY_RUN:
                 parser.error("refusing to apply a plan while DRY_RUN is enabled")
             plan = read_plan(args.apply_plan)
-            issues, manifest = _apply_with_manifest(plan)
-            logger.logPrint("[MANIFEST] Wrote {}".format(manifest))
+            issues, manifest_path = _apply_with_manifest(plan)
+            logger.logPrint("[MANIFEST] Wrote {}".format(manifest_path))
             if issues:
                 parser.error("plan is blocked or changed; regenerate and review it")
             return
@@ -349,7 +360,10 @@ def main(argv: list[str] | None = None) -> None:
             except BaseException as error:
                 recorder.interrupt(error)
                 raise
-            recorder.finalize("failed" if issues else "applied")
+            if issues:
+                recorder.fail(issues)
+            else:
+                recorder.finalize("applied")
             logger.logPrint("[MANIFEST] Updated {}".format(recorder.path))
             if issues:
                 parser.error("resumed plan is blocked or changed; inspect its manifest")

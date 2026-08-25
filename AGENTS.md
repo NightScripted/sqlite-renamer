@@ -11,7 +11,7 @@ SQLite database read-only. Root modules form the application:
   render, and safely apply immutable rename plans.
 - `db.py` owns short-lived read-only SQLite access; `config.py` loads safe
   defaults and private local overrides; `run_manifest.py` and `undo.py` record
-  and reverse or resume completed/interrupted v2/v3 runs.
+  and reverse completed v2/v3 runs or resume incomplete v3 applies after safe reconciliation.
 - `renamer.py` retains filename rendering compatibility helpers. `tests/`
   contains unit and temporary SQLite/filesystem integration coverage.
 - `.github/workflows/ci.yml` defines quality, package, and Python 3.12–3.14

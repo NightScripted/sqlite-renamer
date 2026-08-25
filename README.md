@@ -59,13 +59,13 @@ sqlite-renamer --undo-manifest renamer_runs/<uuid>.json
 
 Undo re-hashes each applied destination and refuses to replace an occupied original path. It writes a new `undone` manifest linked to the original run. Version 1 manifests lack the required fingerprints and cannot be undone automatically.
 
-If an apply is interrupted, leave its incomplete v3 manifest in place. After reviewing the filesystem, keep `DRY_RUN = False` and use:
+If an apply is interrupted or fails after safely rolling back earlier operations, leave its incomplete v3 manifest in place. After reviewing the filesystem, keep `DRY_RUN = False` and use:
 
 ```bash
 python run_renamer.py --resume-manifest renamer_runs/<uuid>.json
 ```
 
-Resume verifies every recorded completed destination and every pending source against its saved SHA-256 before applying only the remaining operations. It refuses changed, missing, or conflicting paths; it never regenerates the plan or rereads tag rules.
+Resume verifies every recorded completed destination and every pending or rolled-back source against its saved SHA-256 before applying only the remaining work. It refuses changed, missing, or conflicting paths; it never regenerates the plan or rereads tag rules.
 
 ## Filename Templates
 
@@ -128,7 +128,7 @@ All run artifacts are created next to the command's working directory and are ig
 |---|---|---|
 | `renamer_plan.json` | Every planning run | Versioned plan, timestamp, operations, and SHA-256 digest to review before applying |
 | `renamer_dryrun.txt` | Every planning run; cleared at the start of each dry run | Configuration/tag summary, dedicated conflict details, and proposed `old_path -> new_path` renames with `READY`, `NOOP`, or `BLOCKED` status |
-| `renamer_runs/<uuid>.json` | Non-dry planning, apply, undo, and resumed apply | Atomically written v3 manifest with action, timestamps, configuration/plan digests, completion state, exception record, per-operation result, source/completed-target SHA-256, and (for undo) the parent run ID |
+| `renamer_runs/<uuid>.json` | Non-dry planning, apply, undo, and resumed apply | Atomically written v3 manifest with action, timestamps, configuration/plan digests, completion state, exception record, per-operation result/error, source/completed-target SHA-256, and (for undo) the parent run ID |
 | `rename_log.txt` | Successful apply when `USING_LOG = True` | Readable `scene_id\|old_path\|new_path` audit trail; use the v2/v3 manifest for recovery |
 
 `renamer_runs/` is created only with `DRY_RUN = False`; dry runs create no manifests. Manifests include media paths, metadata-derived filenames, and file hashes, so treat them as private run records and keep them out of version control. The utility never deletes manifests: retain an apply manifest until safe undo/recovery is no longer needed, then archive or remove it manually. `rename_log.txt` remains an optional readable audit trail, not a recovery record.

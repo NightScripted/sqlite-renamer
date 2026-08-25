@@ -11,7 +11,7 @@ import db
 import logger
 import run_renamer
 from planning import discover_operations
-from rename_plan import RenameOperation, create_plan
+from rename_plan import PlanIssue, RenameOperation, create_plan
 from renamer import edit_db
 from run_manifest import read_manifest
 
@@ -174,7 +174,7 @@ class TestRunner(unittest.TestCase):
         database = MagicMock()
         database.get_tag_id.side_effect = [None, "2", "3"]
         database.get_scene_ids_for_tag.side_effect = [["1"], []]
-        summaries = []
+        summaries: list[run_renamer.TagPassSummary] = []
         with patch.object(run_renamer, "discover_operations", return_value=[MagicMock()]):
             run_renamer._discover_tag_passes(database, summaries)
         rendered = run_renamer.render_configuration_summary(summaries, 2)
@@ -192,7 +192,7 @@ class TestRunner(unittest.TestCase):
         database = MagicMock()
         database.get_tag_id.return_value = "2"
         database.get_scene_ids_for_tag.return_value = ["1", "2"]
-        summaries = []
+        summaries: list[run_renamer.TagPassSummary] = []
         with patch.object(run_renamer, "discover_operations", return_value=[MagicMock()]):
             run_renamer._discover_tag_passes(database, summaries)
         rendered = run_renamer.render_configuration_summary(summaries, 0)
@@ -261,6 +261,26 @@ class TestRunner(unittest.TestCase):
             self.assertEqual(manifest.state, "interrupted")
             self.assertFalse(manifest.complete)
             self.assertIn("KeyboardInterrupt", manifest.error or "")
+
+    def test_apply_with_manifest_keeps_a_failed_apply_resumable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = os.path.join(directory, "old.mp4")
+            destination = os.path.join(directory, "new.mp4")
+            with open(source, "wb") as source_file:
+                source_file.write(b"contents")
+            plan = create_plan((RenameOperation("1", source, destination),))
+            issue = PlanIssue("1", source, destination, "apply_failed", "simulated failure")
+            original_cwd = os.getcwd()
+            os.chdir(directory)
+            try:
+                with patch.object(run_renamer, "apply_plan", return_value=(issue,)):
+                    issues, manifest_path = run_renamer._apply_with_manifest(plan)
+            finally:
+                os.chdir(original_cwd)
+            self.assertEqual(issues, (issue,))
+            manifest = read_manifest(Path(directory) / manifest_path, allow_incomplete=True)
+            self.assertEqual(manifest.state, "failed")
+            self.assertFalse(manifest.complete)
 
     def test_main_revalidates_and_renders_saved_plan_preview(self):
         plan = MagicMock()

@@ -67,7 +67,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R1-2 — Replace mixed append logs with a versioned run manifest
 
-- **Status:** Completed 2026-08-25. UUID-named v3 manifests under ignored `renamer_runs/` capture private configuration and plan digests, start/update/completion timestamps, per-operation source and completed-target hashes, results, and interruption/exception details. They are atomically checkpointed before and after every apply/undo mutation; incomplete apply runs resume only after path/hash reconciliation. The legacy append log remains an optional readable audit export, deliberately not a recovery mechanism.
+- **Status:** Completed 2026-08-25. UUID-named v3 manifests under ignored `renamer_runs/` capture private configuration and plan digests, start/update/completion timestamps, immutable plan errors, separate execution errors, per-operation source and completed-target hashes, and results. They are atomically checkpointed before and after every apply/undo mutation; incomplete apply runs, including safely rolled-back filesystem failures, resume only after path/hash reconciliation. The legacy append log remains an optional readable audit export, deliberately not a recovery mechanism.
 - **Source:** `REL-002`, `FEAT-001`; enables `FEAT-002`
 - **Action:** Give each plan/application a run ID and manifest containing schema version, timestamp, configuration/plan digest, source/destination, validation state, apply result, error, and completion marker. Preserve a readable summary/export.
 - **Reason / expected effect:** Makes partial runs, recovery, support, and later undo attributable to one execution.
