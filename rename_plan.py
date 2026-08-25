@@ -126,6 +126,18 @@ def _normalized_destination(destination: str) -> str:
     return os.path.join(parent, filename.lstrip(" ").rstrip(". ")).casefold()
 
 
+def _destination_filename_error(destination: str) -> str | None:
+    """Return a safety error when a destination basename is not Windows-safe."""
+    filename = os.path.basename(destination)
+    try:
+        sanitized = sanitize_filename(filename)
+    except ValueError as error:
+        return str(error)
+    if sanitized != filename:
+        return "destination filename changes under Windows normalization"
+    return None
+
+
 def validate_plan(plan: RenamePlan) -> tuple[PlanIssue, ...]:
     """Validate filesystem and cross-operation safety without modifying files."""
     issues: list[PlanIssue] = []
@@ -142,6 +154,17 @@ def validate_plan(plan: RenamePlan) -> tuple[PlanIssue, ...]:
                 )
             )
             continue
+        filename_error = _destination_filename_error(operation.destination)
+        if filename_error:
+            issues.append(
+                PlanIssue(
+                    operation.scene_id,
+                    operation.source,
+                    operation.destination,
+                    "invalid_destination",
+                    filename_error,
+                )
+            )
         if operation.source == operation.destination:
             continue
         source_directory = os.path.abspath(os.path.dirname(operation.source))

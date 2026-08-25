@@ -118,6 +118,16 @@ class TestRenamePlan(unittest.TestCase):
         )
         self.assertIn("duplicate_destination", {issue.code for issue in validate_plan(plan)})
 
+    def test_persisted_reserved_windows_destination_blocks_a_plan(self):
+        plan = create_plan(
+            (RenameOperation("1", self.source, os.path.join(self.tempdir.name, "COM¹.mp4")),)
+        )
+        plan_path = os.path.join(self.tempdir.name, "plan.json")
+        write_plan(plan, plan_path)
+        issues = validate_plan(read_plan(plan_path))
+        self.assertEqual([issue.code for issue in issues], ["invalid_destination"])
+        self.assertIn("reserved Windows basename", issues[0].message)
+
     def test_write_read_and_apply_require_an_unchanged_valid_plan(self):
         plan = create_plan((RenameOperation("1", self.source, self.destination),))
         plan_path = os.path.join(self.tempdir.name, "plan.json")
