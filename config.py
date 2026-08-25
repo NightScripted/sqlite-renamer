@@ -66,3 +66,12 @@ def validate() -> None:
         raise ValueError("DB_PATH does not exist or is not a file: {}".format(DB_PATH))
     if not isinstance(tags_dict, dict):
         raise ValueError("tags_dict must be a dictionary")
+    for rule_name, rule in tags_dict.items():
+        if not isinstance(rule, dict):
+            raise ValueError("tag rule {!r} must be a dictionary".format(rule_name))
+        for field in ("tag", "filename"):
+            value = rule.get(field)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(
+                    "tag rule {!r} requires a non-empty {!r} value".format(rule_name, field)
+                )

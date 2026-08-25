@@ -179,6 +179,17 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 - **Rollback/recovery:** Do not publish until artifacts are reproducible; a published release should be deprecated rather than silently replaced.
 - **Authority:** Package publication, tag, and GitHub release each require explicit human approval in a separate task.
 
+### R3-3 — Improve terminal plan review and configuration diagnosis
+
+- **Status:** Completed 2026-08-24. Planning now renders an accessible terminal preview with ready/no-op/blocked totals, a dedicated conflict-and-blocker section, and per-operation details. It also reports configured tag outcomes, including missing, empty, and shadowed tags. `--preview-plan` revalidates a saved plan without applying it.
+- **Source:** Selected exploratory preview/conflict UI and config/missing-tag summary ideas
+- **Action:** Keep plan review in the existing CLI and dry-run artifact; summarize active options and tag-pass outcomes; make conflicts legible before the operation list; provide a read-only saved-plan preview command.
+- **Reason / expected effect:** Speeds safe review and setup diagnosis without adding platform-specific UI, a new dependency, or a mutation path.
+- **Preconditions / risk:** Preserve the plan-first contract and ensure summaries are derived from the same discovery/validation results. Tag names and paths remain private operational output.
+- **Validation:** Unit tests cover preview totals/blockers, missing/empty/selected tags, invalid tag-rule configuration, and saved-plan revalidation; integration and coverage gates remain green.
+- **Rollback/recovery:** This is presentation and early validation only; revert the focused change if output compatibility or setup behavior regresses. Saved plan schema and apply semantics are unchanged.
+- **Authority:** Completed under the explicitly approved implementation task; no GitHub administration required.
+
 ## Phase 4: Strategic Expansion
 
 No strategic expansion is committed. If exploration validates it, `FEAT-005` could become a Stash-native API/plugin mode that emits the same plan schema. It must retain explicit preview/apply and must not silently write database state. A proof of concept should compare supported API coverage, authentication/storage implications, offline tradeoffs, version compatibility, and ongoing maintenance before roadmap promotion.
@@ -276,6 +287,7 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 | R2-7 | Reproducible quality-tool baseline | `DX-002` | Complete | Small | Rule/version policy | Phase 2 | Configured lint, format, type, Actions, and YAML checks pass locally and in CI |
 | R3-1 | Manifest-based safe undo | `FEAT-002`, `REL-002` | Complete | Medium | R0-1, R1-2 | Phase 3 | Apply/undo round trip and conflict refusal verified |
 | R3-2 | First package/release | `FEAT-004` | Preparation complete; publication pending | Medium | Phases 0–1 | Phase 3 | Clean supported-platform install and approved immutable release |
+| R3-3 | Terminal plan review and configuration diagnosis | Selected exploratory ideas | Complete | Small | R0-1, R2-1 | Phase 3 | Read-only preview identifies plan states/blockers and tag configuration outcomes |
 | X-1 | Evaluate Stash API/plugin mode | `FEAT-005` | Exploratory | Medium/High | User/API research | Exploratory/Phase 4 | Evidence supports value and preserves safety invariants before promotion |
 
 ## Success Metrics

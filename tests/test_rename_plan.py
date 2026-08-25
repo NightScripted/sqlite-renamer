@@ -6,10 +6,12 @@ import unittest
 from unittest.mock import patch
 
 from rename_plan import (
+    PlanIssue,
     RenameOperation,
     apply_plan,
     create_plan,
     read_plan,
+    render_plan,
     sanitize_filename,
     validate_plan,
     write_plan,
@@ -112,6 +114,24 @@ class TestRenamePlan(unittest.TestCase):
             )
         )
         self.assertIn("outside_source_directory", {issue.code for issue in validate_plan(plan)})
+
+    def test_preview_groups_blockers_and_counts_operation_states(self):
+        plan = create_plan(
+            (
+                RenameOperation("1", "ready.mp4", "renamed.mp4"),
+                RenameOperation("2", "same.mp4", "same.mp4"),
+                RenameOperation("3", "missing.mp4", "blocked.mp4"),
+            )
+        )
+        issue = PlanIssue(
+            "3", "missing.mp4", "blocked.mp4", "missing_source", "source file does not exist"
+        )
+        preview = render_plan(plan, (issue,))
+        self.assertIn("RENAME PLAN PREVIEW", preview)
+        self.assertIn("Summary: 1 ready, 1 no-op, 1 blocked (1 issue(s))", preview)
+        self.assertIn("CONFLICTS AND BLOCKERS", preview)
+        self.assertIn("missing_source (1)", preview)
+        self.assertIn("  - missing_source: source file does not exist", preview)
 
 
 if __name__ == "__main__":

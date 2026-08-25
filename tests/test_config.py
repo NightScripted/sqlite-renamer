@@ -33,6 +33,16 @@ class TestConfiguration(unittest.TestCase):
             self.assertEqual(config.DB_PATH, database_path)
             config.validate()
 
+    def test_invalid_tag_rule_fails_before_database_access(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = os.path.join(directory, "stash.sqlite")
+            with open(database_path, "w", encoding="utf-8") as database_file:
+                database_file.write("")
+            config.DB_PATH = database_path
+            config.tags_dict = {"invalid": {"tag": "Configured tag", "filename": ""}}
+            with self.assertRaisesRegex(ValueError, "requires a non-empty 'filename' value"):
+                config.validate()
+
 
 if __name__ == "__main__":
     unittest.main()

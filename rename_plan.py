@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 import hashlib
@@ -174,11 +175,54 @@ def validate_plan(plan: RenamePlan) -> tuple[PlanIssue, ...]:
 
 
 def render_plan(plan: RenamePlan, issues: Iterable[PlanIssue]) -> str:
-    """Render all proposed operations and validation failures for review."""
+    """Render an accessible terminal preview of all operations and blockers."""
+    issue_list = tuple(issues)
     issue_map: dict[tuple[str, str], list[PlanIssue]] = {}
-    for issue in issues:
+    for issue in issue_list:
         issue_map.setdefault((issue.scene_id, issue.destination), []).append(issue)
-    lines = ["rename-plan v{} digest {}".format(plan.version, plan.digest)]
+
+    status_counts: Counter[str] = Counter()
+    blocked_operations: list[tuple[RenameOperation, list[PlanIssue]]] = []
+    for operation in plan.operations:
+        operation_issues = issue_map.get((operation.scene_id, operation.destination), [])
+        if operation_issues:
+            status_counts["blocked"] += 1
+            blocked_operations.append((operation, operation_issues))
+        elif operation.source == operation.destination:
+            status_counts["no-op"] += 1
+        else:
+            status_counts["ready"] += 1
+
+    lines = [
+        "RENAME PLAN PREVIEW",
+        "===================",
+        "Plan: v{}  digest: {}".format(plan.version, plan.digest),
+        "Summary: {} ready, {} no-op, {} blocked ({} issue(s))".format(
+            status_counts["ready"],
+            status_counts["no-op"],
+            status_counts["blocked"],
+            len(issue_list),
+        ),
+    ]
+    if blocked_operations:
+        issue_counts = Counter(issue.code for issue in issue_list)
+        lines.extend(["", "CONFLICTS AND BLOCKERS", "---------------------"])
+        lines.append(
+            "Checks: {}".format(
+                ", ".join(
+                    "{} ({})".format(code, count) for code, count in sorted(issue_counts.items())
+                )
+            )
+        )
+        for operation, operation_issues in blocked_operations:
+            codes = ", ".join(issue.code for issue in operation_issues)
+            lines.append(
+                "BLOCKED [{}] {} -> {}".format(codes, operation.source, operation.destination)
+            )
+            for issue in operation_issues:
+                lines.append("  - {}: {}".format(issue.code, issue.message))
+
+    lines.extend(["", "OPERATIONS", "----------"])
     for operation in plan.operations:
         operation_issues = issue_map.get((operation.scene_id, operation.destination), [])
         if operation_issues:

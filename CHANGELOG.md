@@ -8,3 +8,4 @@ All notable user-visible changes are recorded here. This project follows [Keep a
 
 - Safe manifest-based undo for completed v2 apply runs, with SHA-256 and destination-occupancy preconditions.
 - Installable `sqlite-renamer` console command and reproducible source/wheel build validation.
+- Terminal plan preview with a configuration/tag summary, dedicated conflict details, and safe `--preview-plan` revalidation.

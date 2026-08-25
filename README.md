@@ -38,7 +38,15 @@ Run:
 python run_renamer.py
 ```
 
-This writes `renamer_plan.json` and `renamer_dryrun.txt`. The dry run identifies ready, no-op, and blocked operations after checking source files, occupied destinations, directory containment, and collisions across the complete batch. It does not create a run manifest. Set `STOP_AFTER_FIRST = True` to limit each matching tag or fallback pass to one scene.
+This writes `renamer_plan.json` and `renamer_dryrun.txt`. The terminal preview and dry-run file start with a configuration/tag summary, then show ready, no-op, and blocked operations after checking source files, occupied destinations, directory containment, and collisions across the complete batch. Blockers are collected in a dedicated conflict section with their reason; nothing is renamed from this interface. A configured tag that is absent from Stash is listed as `MISSING TAG`; a present tag with no scenes is listed as `EMPTY TAG`. It does not create a run manifest. Set `STOP_AFTER_FIRST = True` to limit each matching tag or fallback pass to one scene.
+
+To recheck a saved plan later without applying it, use:
+
+```bash
+sqlite-renamer --preview-plan renamer_plan.json
+```
+
+It revalidates the current filesystem state and displays the same plan/conflict preview.
 
 For a live run, back up the files, review the dry-run output, then explicitly set `DRY_RUN = False` and run the same command again. To apply a reviewed plan explicitly, run `python run_renamer.py --apply-plan renamer_plan.json`; its digest and filesystem state are revalidated before any rename. A live run never writes to the SQLite database.
 
@@ -108,7 +116,7 @@ All run artifacts are created next to the command's working directory and are ig
 | File | When written | Contents |
 |---|---|---|
 | `renamer_plan.json` | Every planning run | Versioned plan, timestamp, operations, and SHA-256 digest to review before applying |
-| `renamer_dryrun.txt` | Every planning run; cleared at the start of each dry run | Proposed `old_path -> new_path` renames and `READY`, `NOOP`, or `BLOCKED` status |
+| `renamer_dryrun.txt` | Every planning run; cleared at the start of each dry run | Configuration/tag summary, dedicated conflict details, and proposed `old_path -> new_path` renames with `READY`, `NOOP`, or `BLOCKED` status |
 | `renamer_runs/<uuid>.json` | Non-dry planning, apply, and undo | Atomically written v2 manifest with action, timestamp, plan digest, completion state, per-operation result, completed-target SHA-256, and (for undo) the parent run ID |
 | `rename_log.txt` | Successful live rename when `USING_LOG = True` | `scene_id\|old_path\|new_path` rollback reference |
 | `renamer_duplicate.txt` | Database collision, or an existing destination during a live rename | `scene_id\|current_path\|new_filename` |
