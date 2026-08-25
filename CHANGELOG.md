@@ -13,4 +13,4 @@ All notable user-visible changes are recorded here. This project follows [Keep a
 
 ### Fixed
 
-- Keep safely reconciled rollback-related apply failures resumable and preserve plan-digest verification by storing execution errors separately from immutable plan fields.
+- Keep safely reconciled rollback-related apply failures resumable, including verified duplicate cleanup after a failed rollback, and preserve plan-digest verification by storing execution errors separately from immutable plan fields.

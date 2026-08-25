@@ -406,6 +406,33 @@ def _verify_applied_operation(operation: ManifestOperation) -> PlanIssue | None:
     return None
 
 
+def _complete_failed_rollback(
+    recorder: ManifestRecorder, operation: ManifestOperation, planned: RenameOperation
+) -> PlanIssue | None:
+    """Finish a hash-verified rollback cleanup by restoring the intended applied state."""
+    if (
+        not os.path.isfile(operation.source)
+        or not os.path.isfile(operation.destination)
+        or file_sha256(operation.source) != operation.source_sha256
+        or file_sha256(operation.destination) != operation.source_sha256
+    ):
+        return _resume_issue(
+            operation,
+            "resume_conflicting_paths",
+            "failed rollback paths cannot be reconciled to the recorded source SHA-256",
+        )
+    try:
+        os.unlink(operation.source)
+    except OSError as error:
+        return _resume_issue(
+            operation,
+            "resume_cleanup_failed",
+            "could not remove the verified duplicate source: {}".format(error),
+        )
+    recorder.record(planned, "applied")
+    return None
+
+
 def _reconcile_retryable_operation(
     recorder: ManifestRecorder, operation: ManifestOperation
 ) -> tuple[RenameOperation | None, PlanIssue | None]:
@@ -422,6 +449,12 @@ def _reconcile_retryable_operation(
             "resume_unknown_operation_state",
             "operation lacks a safely resumable retry state",
         )
+    if (
+        operation.result == "rollback_failed"
+        and os.path.isfile(operation.source)
+        and os.path.isfile(operation.destination)
+    ):
+        return None, _complete_failed_rollback(recorder, operation, planned)
     if os.path.isfile(operation.source) and not os.path.exists(operation.destination):
         if file_sha256(operation.source) == operation.source_sha256:
             return planned, None
