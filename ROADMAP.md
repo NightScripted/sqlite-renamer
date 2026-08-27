@@ -43,7 +43,7 @@ This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit
 
 ### R0-3 — Complete Windows filename rules and normalization collision checks
 
-- **Status:** Implemented 2026-08-23; pending Windows-runtime verification.
+- **Status:** Completed 2026-08-25. Windows-runtime verification with Python 3.14 exercised temporary-file renames and confirmed filename sanitization for invalid/control characters, ASCII whitespace/period normalization, standard and superscript device names, and normalized destination collisions.
 - **Source:** `BUG-001`, `TEST-002`
 - **Action:** Centralize filename sanitization/validation for control characters, reserved device basenames, trailing periods/spaces, existing punctuation policy, and post-normalization collisions.
 - **Reason / expected effect:** Turns predictable Windows rename failures into deterministic plan errors or safe normalized names.
@@ -275,7 +275,7 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 |---|---|---|---|---|---|---|---|
 | R0-1 | Authoritative validated plan/apply | `REL-001`, `ARCH-001`, `FEAT-001` | Complete | Medium | Current semantics regression tests | Phase 0 | Dry run and apply consume identical plan; all blocking conflicts detected before mutation |
 | R0-2 | Privacy-safe local configuration | `SEC-3`, `FEAT-003` | Complete | Medium | Configuration precedence decision | Phase 0 | No private defaults tracked; clean setup works; missing config fails clearly |
-| R0-3 | Complete Windows filename rules | `BUG-001`, `TEST-002` | Verification pending | Medium | Normalization policy | Phase 0 | Platform rule suite passes; normalization collisions block safely |
+| R0-3 | Complete Windows filename rules | `BUG-001`, `TEST-002` | Complete | Medium | Normalization policy | Phase 0 | Platform rule suite passes; normalization collisions block safely |
 | R1-1 | SQLite/filesystem integration fixture | `TEST-002`, `REL-001` | Complete | Medium | Plan interface | Phase 1 | Real queries and multi-file/collision paths pass in CI |
 | R1-2 | Versioned run manifest | `REL-002`, `FEAT-001` | Complete | Medium | R0-1 | Phase 1 | Every run has attributable operation states, recovery checkpoints, and a completion marker |
 | R2-1 | Explicit planner/executor/DB boundaries | `ARCH-001` | Complete | Medium | R0-1, R1-1 | Phase 2 | No global cursor required by tests; behavior unchanged |
@@ -306,7 +306,6 @@ Any future branch deletion requires refreshed branch/PR/worktree/unique-commit e
 
 ## Recommended Execution Order
 
-1. **R0-3:** Run the existing filename rule suite on Windows before describing Windows runtime support as complete.
-2. **R3-2:** Prepare a release candidate; publish, tag, or release only after explicit approval and clean matrix/security checks.
-3. **G2:** Update the GitHub homepage only after a separately approved public destination decision.
-4. **X-1:** Separately validate Stash API/plugin demand and constraints; promote only with evidence.
+1. **R3-2:** Prepare a release candidate; publish, tag, or release only after explicit approval and clean matrix/security checks.
+2. **G2:** Update the GitHub homepage only after a separately approved public destination decision.
+3. **X-1:** Separately validate Stash API/plugin demand and constraints; promote only with evidence.

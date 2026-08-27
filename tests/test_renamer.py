@@ -99,6 +99,7 @@ class TestPlanning(unittest.TestCase):
 
 class TestCompatibilityRenderer(unittest.TestCase):
     def test_edit_db_uses_a_short_lived_handle_and_never_applies(self):
+        """Keep the compatibility renderer read-only and platform-neutral."""
         manager = MagicMock()
         database = manager.__enter__.return_value
         database.cursor.fetchall.return_value = [
@@ -115,7 +116,9 @@ class TestCompatibilityRenderer(unittest.TestCase):
             finally:
                 os.chdir(original_cwd)
         self.assertEqual(len(plan.operations), 1)
-        self.assertEqual(plan.operations[0].destination, "/fixture/Fixture Title.mp4")
+        self.assertEqual(
+            plan.operations[0].destination, os.path.join("/fixture", "Fixture Title.mp4")
+        )
         manager.__enter__.assert_called_once_with()
         manager.__exit__.assert_called_once()
 

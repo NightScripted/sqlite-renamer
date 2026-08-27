@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 import hashlib
 import json
+import ntpath
 import os
 from pathlib import Path
 import re
@@ -21,6 +22,8 @@ WINDOWS_RESERVED_NAMES = {
     "NUL",
     *(f"COM{number}" for number in range(1, 10)),
     *(f"LPT{number}" for number in range(1, 10)),
+    *(f"COM{number}" for number in "¹²³"),
+    *(f"LPT{number}" for number in "¹²³"),
 }
 INVALID_FILENAME_CHARS = re.compile(r'[\\/:"*?<>|#,\x00-\x1f]+')
 
@@ -60,13 +63,14 @@ def sanitize_filename(filename: str) -> str:
     """Return a Windows-safe filename component or raise ``ValueError``.
 
     The existing punctuation policy also strips ``#`` and ``,``. Control
-    characters and trailing periods/spaces are removed. Reserved Windows
-    basenames are rejected rather than silently renamed to an unrelated file.
+    characters plus leading/trailing ASCII spaces and trailing periods are
+    removed. Reserved Windows basenames are rejected rather than silently
+    renamed to an unrelated file.
     """
-    cleaned = INVALID_FILENAME_CHARS.sub("", filename).rstrip(". ")
+    cleaned = INVALID_FILENAME_CHARS.sub("", filename).lstrip(" ").rstrip(". ")
     if not cleaned or not any(character.isalnum() for character in cleaned):
         raise ValueError("filename is empty after Windows normalization")
-    stem = cleaned.split(".", 1)[0].upper()
+    stem = cleaned.split(".", 1)[0].rstrip(" ").upper()
     if stem in WINDOWS_RESERVED_NAMES:
         raise ValueError("filename uses reserved Windows basename: {}".format(stem))
     return cleaned
@@ -117,6 +121,24 @@ def read_plan(path: str | os.PathLike[str]) -> RenamePlan:
     return plan
 
 
+def _normalized_destination(destination: str) -> str:
+    """Return the case-insensitive Windows comparison form for a destination."""
+    parent, filename = os.path.split(os.path.normpath(destination))
+    return ntpath.normcase(os.path.join(parent, filename.lstrip(" ").rstrip(". ")))
+
+
+def _destination_filename_error(destination: str) -> str | None:
+    """Return a safety error when a destination basename is not Windows-safe."""
+    filename = os.path.basename(destination)
+    try:
+        sanitized = sanitize_filename(filename)
+    except ValueError as error:
+        return str(error)
+    if sanitized != filename:
+        return "destination filename changes under Windows normalization"
+    return None
+
+
 def validate_plan(plan: RenamePlan) -> tuple[PlanIssue, ...]:
     """Validate filesystem and cross-operation safety without modifying files."""
     issues: list[PlanIssue] = []
@@ -133,6 +155,17 @@ def validate_plan(plan: RenamePlan) -> tuple[PlanIssue, ...]:
                 )
             )
             continue
+        filename_error = _destination_filename_error(operation.destination)
+        if filename_error:
+            issues.append(
+                PlanIssue(
+                    operation.scene_id,
+                    operation.source,
+                    operation.destination,
+                    "invalid_destination",
+                    filename_error,
+                )
+            )
         if operation.source == operation.destination:
             continue
         source_directory = os.path.abspath(os.path.dirname(operation.source))
@@ -167,7 +200,7 @@ def validate_plan(plan: RenamePlan) -> tuple[PlanIssue, ...]:
                     "destination already exists",
                 )
             )
-        normalized = os.path.normpath(operation.destination).rstrip(". ").casefold()
+        normalized = _normalized_destination(operation.destination)
         other = destinations.get(normalized)
         if other is not None:
             issues.append(
