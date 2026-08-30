@@ -2,254 +2,203 @@
 
 ## Roadmap Principles
 
-This roadmap is derived from the repository state and findings in `ANALYSIS.md` at revision `dd22a7145af151ee78a2aa0e1315df99b1044483`. Work is ordered by filesystem safety, privacy, reliability, ability to verify, and dependency structure—not by novelty. A change is complete only when the relevant regression, integration, platform, or administrative validation passes.
-
-The roadmap preserves the utility's strongest constraints: read the Stash database without writing it, keep live file mutation explicit, preserve recoverable evidence, and prefer small reversible increments over a rewrite. Optional ideas remain outside committed phases until user need is established.
+This roadmap derives from `ANALYSIS.md` at audited revision `eb307281a13fa75128107d2f5e094b6c943bf558`. Work is ordered by filesystem integrity, security boundary, reproducibility, user impact, and dependency order. A change is complete only when its stated regression, integration, platform, documentation, or administrative validation passes. Small reversible increments are preferred; implementation, publication, remote administration, and destructive cleanup each require separate authority.
 
 ## Roadmap Lineage
 
-This is the first `ROADMAP.md`, but it reconciles the June 2026 historical audit:
+The prior roadmap's plan model, SQLite integration, manifests, undo, resume, packaging, preview/config diagnostics, Windows naming, CI consolidation, quality gates, and documentation work are complete and are not recreated as new work. `REL-002` is reopened because a newly reproduced interruption window is not safely resumable. Historical filename-length concern N-3 returns as `BUG-003`. `DOC-002` is improved but remains active. Administrative portions of `GH-001` and `GH-002` are retained as unable to re-verify, not declared regressed. First-release work (`FEAT-004`) persists; API/plugin work (`FEAT-005`) remains exploratory.
 
-- Completed: parameterized scene selection, runner/tag-precedence refactor and tests, GPL licensing, contribution/security guidance, dependency automation, Python 3.12–3.14 CI, and removal of the empty backlog.
-- Persistent and carried forward: Windows filename handling (`BUG-001`), remaining run/recovery semantics (`REL-002`), planner/executor separation (`ARCH-001`), privacy-safe configuration (`SEC-3`), repository-owned quality tooling (`DX-002`), action pinning (`GH-002`), and benchmark-first performance review (`PERF-001`).
-- Newly added: authoritative plan validation (`REL-001`/`FEAT-001`), complete-source coverage (`TEST-001`), SQLite/platform integration (`TEST-002`), stale external homepage (`DOC-002`), duplicated PR CI (`DX-001`), and required CodeQL governance (`GH-001`).
-- Reprioritized: undo follows a structured manifest; packaging/releases follow safety and configuration stabilization; performance optimization follows measurement.
-- Removed from committed work: the obsolete empty-bracket, 1440p-label, future-token, Python 3.10, and provenance concerns.
-- Deferred/rejected: generic media-renamer expansion, automatic Stash database writes, a hosted service, and a full rewrite.
+| Prior initiative | Current lineage |
+|---|---|
+| `R0-1`, `R2-1` | Completed: authoritative plan and planner/executor/database split (`REL-001`, `ARCH-001`, `FEAT-001`) |
+| `R0-2` | Completed: private local configuration boundary (`SEC-3`, `FEAT-003`); installed-path clarification continues as `R1-5` |
+| `R0-3`, `R1-1` | Completed: Windows normalization rules and invented SQLite/filesystem integration (`BUG-001`, `TEST-002`) |
+| `R1-2` | Improved but follow-up required: v3 run manifest shipped; newly reproduced recovery gap continues as `R0-4` (`REL-002`) |
+| `R2-2`–`R2-7` | Completed: full-source coverage, CI/CodeQL, action pins/policy, benchmark, docs, and quality baseline |
+| `R3-1` | Completed: hash-preconditioned v2/v3 undo (`FEAT-002`) |
+| `R3-2` | Preparation complete; publication still pending explicit approval (`FEAT-004`) |
+| `R3-3` | Completed: terminal plan preview and configuration/tag diagnostics |
+| `G2` | Persistent: homepage metadata remains historical (`DOC-002`) |
+| `G3`, `G4` | Reported completed; current public evidence supports them, but authenticated settings require readback (`GH-001`, `GH-002`) |
+| `G5` | Persistent: first release remains unpublished (`FEAT-004`) |
+| `G6` | Deferred: Code of Conduct only when community need exists |
+| `G7` | Completed: quality checks are in CI (`DX-002`) |
 
 ## Phase 0: Immediate Safety and Repository Health
 
-### R0-1 — Make preview and apply consume one validated rename plan
+### `R0-4` — Make every apply state resumable and validate manifest-controlled cleanup
 
-- **Status:** Completed 2026-08-23.
-- **Source:** `REL-001`, `ARCH-001`, `FEAT-001`
-- **Action:** Introduce a versioned rename-operation/plan model. Discover all operations first; validate source existence, destination occupancy, no-op identity, normalized duplicate destinations, and directory containment; render dry-run from that plan; apply only an unchanged valid plan.
-- **Reason / expected effect:** Restores dry run as a trustworthy safety gate and prevents foreseeable partial/conflicting batches.
-- **Preconditions / risk:** Freeze current template/tag/fallback semantics with regression tests. Main risk is behavior drift during extraction.
-- **Validation:** Unit tests for each validation state; temporary-filesystem tests; plan digest/change rejection; existing regression tests remain green. Real SQLite query coverage remains tracked by `R1-1`.
-- **Rollback/recovery:** Keep the old execution path behind an internal transition boundary until parity tests pass; revert the focused commit if parity fails. No migration or irreversible data operation is required.
-- **Authority:** Code implementation requires a separate approved task; no GitHub administration required.
+- **Sources:** `REL-002`, `SEC-007`
+- **Action:** Introduce an explicit mutation phase or conservative reconciliation for the destination-linked/source-present interval. Validate every manifest operation's structure, allowed root, same-directory relationship, file identity, hash, and cleanup authority before mutation; do not special-case `rollback_failed` ahead of policy validation.
+- **Preconditions:** Preserve v2/v3 compatibility, no-replace apply, immutable plan digest, and safe refusal on ambiguous state. Define the exact crash-state table first.
+- **Risk / expected effect:** Recovery code can delete the wrong name if inference is weak; focused design removes the blocked window and forged-path cleanup path.
+- **Validation:** Fault-injection after link, unlink, each checkpoint, rollback link/unlink, and recorder failures; forged-manifest tests for cross-directory, different inode, symlink, changed hash, missing path, and duplicate hard links; existing undo/resume integration green.
+- **Rollback/recovery:** Focused commit; retain reader compatibility and refuse new ambiguous states. Revert if an invariant regresses.
+- **Authority:** Source/test implementation requires explicit follow-up approval. No real media test is needed or authorized.
 
-### R0-2 — Separate distributable configuration from private local state
+### `R0-5` — Enforce private, link-resistant run artifacts
 
-- **Status:** Completed 2026-08-23.
-- **Source:** `SEC-3`, `FEAT-003`
-- **Action:** Replace committed personal values with placeholders; add an ignored local configuration file and/or explicit `--config`/environment boundary; fail clearly when required configuration is absent; scrub current documentation examples without reproducing private values.
-- **Reason / expected effect:** Prevents repeated privacy disclosure and makes setup portable.
-- **Preconditions / risk:** Define precedence and migration from direct `config.py` editing. Main risk is breaking existing invocations.
-- **Validation:** Tests for defaults, precedence, missing/invalid paths, and ignored-file behavior; clean checkout setup walkthrough; secret/path-pattern scan.
-- **Rollback/recovery:** Retain a documented one-release compatibility adapter if needed. Revert code/docs if setup validation fails.
-- **Authority:** Separate code/docs task required. Any Git history rewrite is explicitly excluded, disruptive, and requires a separate human privacy decision and approval.
-
-### R0-3 — Complete Windows filename rules and normalization collision checks
-
-- **Status:** Completed 2026-08-25. Windows-runtime verification with Python 3.14 exercised temporary-file renames and confirmed filename sanitization for invalid/control characters, ASCII whitespace/period normalization, standard and superscript device names, and normalized destination collisions.
-- **Source:** `BUG-001`, `TEST-002`
-- **Action:** Centralize filename sanitization/validation for control characters, reserved device basenames, trailing periods/spaces, existing punctuation policy, and post-normalization collisions.
-- **Reason / expected effect:** Turns predictable Windows rename failures into deterministic plan errors or safe normalized names.
-- **Preconditions / risk:** Decide whether edge cases are rejected or transformed and preserve extension/template semantics. Aggressive normalization can create collisions.
-- **Validation:** Table-driven tests based on Microsoft rules; explicit `CON.ext`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`, control-character, trailing-space/period, and normalization-collision cases; Windows CI or manual Windows verification.
-- **Rollback/recovery:** Sanitization is a pure planning step; revert the focused change if compatibility tests fail.
-- **Authority:** Separate implementation approval; no administrative access.
+- **Sources:** `SEC-008`, `SEC-009`
+- **Action:** Centralize plan, report, log, temporary, and manifest creation in an artifact-store boundary. Require owner-private directories/files where supported; use exclusive/link-resistant creation, verify type/ownership, and refuse unsafe shared paths.
+- **Preconditions:** Decide supported POSIX/Windows permission behavior and preserve atomic replacement.
+- **Risk / expected effect:** Permission changes can affect Windows/existing workflows; the result prevents symlink redirection and reduces local metadata disclosure.
+- **Validation:** Tests for symlinks, pre-existing files, permissive umask, directory replacement, concurrent creation, POSIX modes, and documented Windows fallback.
+- **Rollback/recovery:** Keep artifact content compatible; revert helper adoption if portability fails. Refusal must precede media mutation.
+- **Authority:** Follow-up code task and human review required.
 
 ## Phase 1: Stabilization
 
-### R1-1 — Add privacy-safe SQLite and filesystem integration fixtures
+### `R1-3` — Make filename portability failures visible in preview
 
-- **Status:** Completed 2026-08-24. The integration suite creates an invented supported-schema SQLite database and temporary media tree, then exercises real joins, multi-file planning, and explicit apply without touching user data.
-- **Source:** `TEST-002`, `REL-001`, `BUG-001`
-- **Action:** Create a minimal supported-schema SQLite fixture and temporary media tree covering tag/fallback order, multiple files per scene, duplicates, missing files, occupied destinations, and Unicode/platform filename cases.
-- **Reason / expected effect:** Validates real SQL/cardinality and complete operation semantics rather than mock call shapes.
-- **Preconditions / risk:** Document which Stash schema snapshot the fixture represents; use invented metadata only. Fixture drift is the main maintenance risk.
-- **Validation:** Tests execute real queries in CI, fail on schema mismatch, and never touch non-temporary paths.
-- **Rollback/recovery:** Fixture/test-only change is reversible; remove only through a reviewed revert if it proves inaccurate.
-- **Authority:** Separate test task; no live database access required.
+- **Sources:** `BUG-002`, `BUG-003`
+- **Action:** Add encoded component-length validation and a deliberate case-only strategy using a validated temporary component. Preserve occupied-target and normalized-collision protection.
+- **Preconditions:** Define platform limits and crash recovery for the temporary-name sequence.
+- **Risk / expected effect:** Case-only handling adds a mutation step; complete plans become truthful for predictable failures.
+- **Validation:** ASCII/multibyte length, case-only, temporary collision, interruption, rollback, macOS/Linux, and Windows CI tests.
+- **Rollback/recovery:** Use a unique plan-bound temporary name, checkpoint both legs, and leave a reconcilable manifest. Revert focused commits on platform regression.
+- **Authority:** Follow-up implementation approval required.
 
-### R1-2 — Replace mixed append logs with a versioned run manifest
+### `R1-4` — Define `STOP_AFTER_FIRST` as one complete scene
 
-- **Status:** Completed 2026-08-25. UUID-named v3 manifests under ignored `renamer_runs/` capture private configuration and plan digests, start/update/completion timestamps, immutable plan errors, separate execution errors, per-operation source and completed-target hashes, and results. They are atomically checkpointed before and after every apply/undo mutation; incomplete apply runs reconcile only when paths and hashes prove the intended state. Resume removes a duplicate source only when a failed rollback leaves both paths verified against the saved source hash. The legacy append log remains an optional readable audit export, deliberately not a recovery mechanism.
-- **Source:** `REL-002`, `FEAT-001`; enables `FEAT-002`
-- **Action:** Give each plan/application a run ID and manifest containing schema version, timestamp, configuration/plan digest, source/destination, validation state, apply result, error, and completion marker. Preserve a readable summary/export.
-- **Reason / expected effect:** Makes partial runs, recovery, support, and later undo attributable to one execution.
-- **Preconditions / risk:** `R0-1` plan schema must exist; define safe path retention and avoid logging unnecessary metadata.
-- **Validation:** Interrupted-run simulation, append/resume rules, atomic manifest writes, schema-version tests, and documentation review.
-- **Rollback/recovery:** Manifests are never automatically deleted. Retain them until undo/recovery is no longer needed, then archive or remove them manually; the optional readable log is not used for recovery.
-- **Authority:** Separate implementation approval.
+- **Sources:** `BUG-004`
+- **Action:** Retain all rows/files for the first scene and stop before the next, or explicitly select and document one-operation behavior.
+- **Preconditions:** Confirm intended semantics against Stash multi-file scenes.
+- **Risk / expected effect:** Query ordering must be deterministic; spot checks will reflect a whole scene.
+- **Validation:** Invented SQLite integration with two files in scene one and a second scene, for tag and fallback passes.
+- **Rollback/recovery:** Pure planning change; revert if ordering changes unexpectedly.
+- **Authority:** Product choice and follow-up code task required.
+
+### `R1-5` — Make installed configuration discovery unambiguous
+
+- **Sources:** `DOC-003`
+- **Action:** Establish one precedence/location contract for checkout and installed command. Prefer explicit `--config`, environment variable, and a documented user config directory; preserve compatibility where practical. Correct “assignment-only” unless parsing becomes declarative.
+- **Preconditions:** Choose whether Python configuration remains trusted executable code.
+- **Risk / expected effect:** Moving fallback may surprise users; deprecation and diagnostics prevent silent drift.
+- **Validation:** CLI tests from source/wheel, precedence tests, error messages, and no private values in output.
+- **Rollback/recovery:** Keep explicit path/env stable and fallback migration reversible for at least one release.
+- **Authority:** Product decision and implementation approval required.
 
 ## Phase 2: Maintainability and Developer Experience
 
-### R2-1 — Complete the incremental planner/executor and DB lifecycle split
+### `R2-8` — Add focused Windows filesystem CI
 
-- **Status:** Completed 2026-08-24. `Database` owns one read-only connection and query helpers; discovery receives that handle explicitly; rendering/validation remain pure; `execution.py` owns filesystem application.
-- **Source:** `ARCH-001`
-- **Action:** After `R0-1`, move discovery/querying behind an explicit database handle, retain pure renderer/validator functions, and isolate the filesystem executor.
-- **Reason / expected effect:** Removes global test state and makes schema, planning, and mutation independently testable.
-- **Preconditions / risk:** Integration coverage from `R1-1`; avoid gratuitous abstraction or a rewrite.
-- **Validation:** Existing behavior tests, fixture integration, import/no-side-effect checks, and a module-boundary review.
-- **Rollback/recovery:** Land as small refactor-only commits with no behavior/config migration; revert individually on regression.
-- **Authority:** Separate implementation approval.
+- **Sources:** `TEST-003`, `BUG-001`, `BUG-002`, `BUG-003`
+- **Action:** Add a bounded `windows-latest` job for filesystem-sensitive tests, then evaluate making it required after stable runs.
+- **Preconditions:** Phase 1 semantics and deterministic platform markers.
+- **Risk / expected effect:** More CI time/flakiness; continuous evidence replaces one-time confidence.
+- **Validation:** Green Windows runs on PR/`main`, with intentional skips documented. Requiring the check is a separate manual action.
+- **Rollback/recovery:** Remove the job or requirement without changing application behavior.
+- **Authority:** Workflow follow-up approval; required-check administration needs admin approval.
 
-### R2-2 — Measure all production modules and restore the 80% coverage gate
+### `R2-9` — Reconcile release and operator documentation
 
-- **Status:** Completed 2026-08-24. `run_renamer.py` is no longer omitted and the exact coverage command measures every production module. The latest local Python 3.14 verification (2026-08-25) passed 51 tests at 91.69% coverage.
-- **Source:** `TEST-001`
-- **Action:** Remove the `run_renamer.py` omit rule, test runner helpers/fallback/dry-run initialization/main boundaries, and keep the threshold at or above 80% across all first-party modules.
-- **Reason / expected effect:** Makes the published quality gate truthful.
-- **Preconditions / risk:** Prefer behavior tests over lines written solely for coverage.
-- **Validation:** The exact CI command reports every production module and passes at 80% or higher on every supported Python version.
-- **Rollback/recovery:** Revert test/config changes if they destabilize CI; never lower the threshold merely to regain green.
-- **Authority:** Separate code/test task.
+- **Sources:** `DOC-002`, `DOC-003`, `DOC-004`, `SEC-007`, `SEC-008`, `SEC-009`
+- **Action:** Update CHANGELOG claims/recent work; align README installed config; document manifest trust, artifact permissions, concurrency/support boundaries, completed recovery design, and release gates.
+- **Preconditions:** Implemented behavior final; docs follow code/tests.
+- **Risk / expected effect:** Low; users receive one coherent safety contract.
+- **Validation:** Examples against source/wheel, links, cross-document terminology, `git diff --check`.
+- **Rollback/recovery:** Documentation commits independently revertible.
+- **Authority:** Follow-up docs task. Homepage change is separately `G2`.
 
-### R2-3 — De-duplicate CI and make successful CodeQL required
+### `R2-10` — Preserve a comparable performance baseline
 
-- **Status:** Completed 2026-08-25. CI runs feature work through pull requests only, limits `push` runs to `main`, and uses ten-minute job timeouts. `main` now requires the stable `Analyze (actions)` and `Analyze (python)` CodeQL checks from GitHub Actions alongside the Python matrix.
-- **Source:** `DX-001`, `GH-001`
-- **Action:** Limit `push` CI to `main` while retaining pull-request checks, add a bounded timeout, verify stable check names, then add CodeQL to `main` required checks.
-- **Reason / expected effect:** Halves duplicate PR matrix work while ensuring the existing security analysis gates merges.
-- **Preconditions / risk:** Confirm event coverage and CodeQL check identity on a test PR. Incorrect required-check names can block merges.
-- **Validation:** One PR matrix per commit, one main push matrix after merge, timeout behavior, successful/failed required-check test, and administrator recovery instructions.
-- **Rollback/recovery:** Revert the workflow commit and remove the added required check through branch-protection administration if it deadlocks merges.
-- **Authority:** Workflow edit and later manual GitHub administrative change require explicit approval; preserve current protection until validation.
-
-### R2-4 — Harden GitHub Actions supply-chain policy
-
-- **Status:** Completed 2026-08-25. Every workflow action is pinned to a reviewed full SHA with a version comment, and existing Dependabot Actions updates remain enabled. Repository policy now permits GitHub-owned actions only and requires full commit-SHA pins.
-- **Source:** `GH-002`
-- **Action:** Replace action tags with reviewed full commit SHAs plus version comments, configure Dependabot to update them, restrict allowed actions to required GitHub-owned/approved actions, then enable SHA pin enforcement.
-- **Reason / expected effect:** Reduces mutable-reference and unapproved-action risk.
-- **Preconditions / risk:** Inventory every action and verify update automation. A wrong SHA/policy can break CI.
-- **Validation:** Workflow runs on a test PR; Dependabot recognizes updates; policy blocks an unapproved test reference and permits production actions.
-- **Rollback/recovery:** Restore the prior policy and reviewed workflow commit if CI becomes unavailable.
-- **Authority:** Workflow edit plus manual GitHub administration; explicit approval required.
-
-### R2-5 — Benchmark query and memory behavior before optimization
-
-- **Status:** Completed 2026-08-24. The reproducible synthetic benchmark records time, SQLite statement count, and peak Python allocation at 100 and 1,000 scenes; it confirms the expected `3N + 1` metadata-query shape without justifying an optimization yet.
-- **Source:** `PERF-001`
-- **Action:** Build privacy-safe fixtures at representative sizes and record elapsed time, query count, and peak memory for planning.
-- **Reason / expected effect:** Converts a static N+1 observation into a measured decision.
-- **Preconditions / risk:** Planner and fixture should be stable enough for repeatable measurements. Synthetic results may not represent every library.
-- **Validation:** Reproducible benchmark command, environment/fixture sizes recorded, thresholds agreed before optimization.
-- **Rollback/recovery:** Benchmark-only work has no product migration; discard proposed optimization if thresholds are acceptable.
-- **Authority:** Separate task; no live library required unless separately authorized.
-
-### R2-6 — Consolidate current documentation
-
-- **Status:** Completed 2026-08-24. README and contribution guidance now describe the current safety, quality, and benchmark contracts; the forum link is clearly historical. Changing GitHub homepage metadata remains a separate administrator action.
-- **Source:** `DOC-001`, `DOC-002`, `SEC-3`
-- **Action:** Update README/CLAUDE/config guidance after behavior changes, and label the forum thread as historical/community context. The June audit has been reconciled into `ANALYSIS.md` and removed; Git history retains the original artifact.
-- **Reason / expected effect:** Establishes one truthful current tracker and prevents stale/private setup guidance.
-- **Preconditions / risk:** Behavior/config changes must land first so docs describe reality.
-- **Validation:** Link check, setup walkthrough, privacy-pattern scan, and comparison against current code/CI.
-- **Rollback/recovery:** Documentation changes are recoverable through Git.
-- **Authority:** Separate documentation task. Changing GitHub homepage is a separate manual administrative action (`G2`).
-
-### R2-7 — Define and adopt a reproducible quality-tool baseline
-
-- **Status:** Completed 2026-08-24. Repository-owned Ruff, mypy, and yamllint configuration and pinned development tools are documented and run in CI alongside Actionlint v1.7.12.
-- **Source:** `DX-002`
-- **Action:** Choose a deliberately scoped Ruff lint/format, mypy, and GitHub-aware YAML policy; record compatible tool versions or constraints; fix the resulting baseline in a mechanical change; document one local command; add CI only after it passes.
-- **Reason / expected effect:** Converts tool-default-dependent results into a stable contributor contract without mixing broad modernization with correctness work.
-- **Preconditions / risk:** Agree on rule scope and supported Python versions. Enabling every current default would create noisy churn and obscure functional diffs.
-- **Validation:** Core lint, format check, mypy, Actionlint, and configured YAML lint pass locally and in CI; the existing tests remain green; a deliberately invalid fixture or test branch demonstrates each gate can fail.
-- **Rollback/recovery:** Land configuration/formatting separately from functional changes; revert the CI gate first if a tool upgrade unexpectedly blocks work, while preserving the reviewed configuration for diagnosis.
-- **Authority:** Separate tooling/code task; workflow changes require explicit approval but no GitHub administrative access unless made required.
+- **Sources:** `PERF-001`
+- **Action:** Record comparable runs across meaningful releases. Add thresholds only after variance and representative sizes are known.
+- **Preconditions:** Stable benchmark environment/method.
+- **Risk / expected effect:** Avoids brittle microbenchmark gates and premature refactors.
+- **Validation:** Repeated medians and environment metadata.
+- **Rollback/recovery:** Remove noisy thresholds without application changes.
+- **Authority:** Optional maintenance; no current performance defect.
 
 ## Phase 3: Product Improvements
 
-### R3-1 — Add safe undo from completed manifests
+### `R3-2` — Complete preparation and publish the first release
 
-- **Status:** Completed 2026-08-25. Version 2 and 3 apply manifests persist digest-verified operation records and completed-target SHA-256; `--undo-manifest` reconstructs only successful operations, refuses changed or occupied paths, and writes a linked undo manifest. Version 3 also checkpoints interrupted applies for explicit safe resume.
-- **Source:** `FEAT-002`, `REL-002`
-- **Action:** Generate reverse operations only from successfully applied manifest entries; validate that current paths/hashes or equivalent identities still match before reversing.
-- **Reason / expected effect:** Provides trustworthy recovery instead of asking users to interpret mixed text logs.
-- **Preconditions / risk:** `R0-1` and `R1-2`; decide file identity checks. Blind undo could overwrite later user changes, so conflicts must block.
-- **Validation:** Apply/undo round trips, changed-file/destination conflict tests, partial-run tests, and manual temporary-tree exercise.
-- **Rollback/recovery:** Undo itself must produce a new manifest; implementation can be removed without changing old manifests.
-- **Authority:** Separate feature approval.
+- **Sources:** `FEAT-004`, `DOC-004`, `GH-001`, `GH-002`
+- **Action:** After Phases 0–2, choose a version, finalize notes, build from a clean candidate, verify wheel/sdist and installed CLI, then create a protected tag and GitHub release. Package-index publication remains separately optional.
+- **Preconditions:** No active Medium safety issue; Windows green; admin controls read back; clean tree; owner approves version/license/notes.
+- **Risk / expected effect:** Publication creates a durable compatibility commitment; a release simplifies installation/evaluation.
+- **Validation:** Reproducible build, artifact inspection, fresh supported-Python smoke tests, checksums, release links.
+- **Rollback/recovery:** Never overwrite tags/artifacts. Publish a corrective version and mark prior release if needed; follow host yanking policy.
+- **Authority:** Explicit approval required for tag, release, or publication; admin access required.
 
-### R3-2 — Prepare the first versioned release and installable package
+### `R3-4` — Add a read-only operator preflight/doctor command
 
-- **Status:** Preparation completed 2026-08-24; publication intentionally pending explicit authority. The project has PEP 621 metadata, a `sqlite-renamer` console entry point, source/wheel CI validation, changelog, and release runbook. No tag, package publication, or GitHub release has been created.
-- **Source:** `FEAT-004`, documented maintainer need for reproducible distribution
-- **Action:** Add `pyproject.toml`, console entry point, constraints/lock strategy appropriate to an application, changelog/release notes, release validation, and a tagged GitHub release; evaluate `pipx` installation.
-- **Reason / expected effect:** Gives users a stable artifact and supportable version rather than an arbitrary branch checkout.
-- **Preconditions / risk:** Phases 0–1 complete, supported platforms defined, clean security/dependency checks. Packaging can change config/resource lookup.
-- **Validation:** Clean installs on supported Python/platform matrix, packaged tests, license/source inclusion, version output, uninstall, and release dry run.
-- **Rollback/recovery:** Do not publish until artifacts are reproducible; a published release should be deprecated rather than silently replaced.
-- **Authority:** Package publication, tag, and GitHub release each require explicit human approval in a separate task.
-
-### R3-3 — Improve terminal plan review and configuration diagnosis
-
-- **Status:** Completed 2026-08-24. Planning now renders an accessible terminal preview with ready/no-op/blocked totals, a dedicated conflict-and-blocker section, and per-operation details. It also reports configured tag outcomes, including missing, empty, and shadowed tags. `--preview-plan` revalidates a saved plan without applying it.
-- **Source:** Selected exploratory preview/conflict UI and config/missing-tag summary ideas
-- **Action:** Keep plan review in the existing CLI and dry-run artifact; summarize active options and tag-pass outcomes; make conflicts legible before the operation list; provide a read-only saved-plan preview command.
-- **Reason / expected effect:** Speeds safe review and setup diagnosis without adding platform-specific UI, a new dependency, or a mutation path.
-- **Preconditions / risk:** Preserve the plan-first contract and ensure summaries are derived from the same discovery/validation results. Tag names and paths remain private operational output.
-- **Validation:** Unit tests cover preview totals/blockers, missing/empty/selected tags, invalid tag-rule configuration, and saved-plan revalidation; integration and coverage gates remain green.
-- **Rollback/recovery:** This is presentation and early validation only; revert the focused change if output compatibility or setup behavior regresses. Saved plan schema and apply semantics are unchanged.
-- **Authority:** Completed under the explicitly approved implementation task; no GitHub administration required.
+- **Sources:** Missing capability from analysis; supports `DOC-003`, `SEC-008`, `SEC-009`
+- **Action:** Report config source, database readability/read-only opening, artifact safety, same-filesystem/hard-link capability using a private temporary probe, and mode without touching media.
+- **Preconditions:** Config/artifact contracts stable; define allowed temporary writes.
+- **Risk / expected effect:** A probe must not resemble library mutation; constrain and label it.
+- **Validation:** Pass/fail/blocked integration, no DB/media writes, cleanup on interruption.
+- **Rollback/recovery:** Additive/removable; temporary probes uniquely named and recoverably cleaned.
+- **Authority:** Product selection and implementation approval required.
 
 ## Phase 4: Strategic Expansion
 
-No strategic expansion is committed. If exploration validates it, `FEAT-005` could become a Stash-native API/plugin mode that emits the same plan schema. It must retain explicit preview/apply and must not silently write database state. A proof of concept should compare supported API coverage, authentication/storage implications, offline tradeoffs, version compatibility, and ongoing maintenance before roadmap promotion.
+No expansion is committed. First prove a stable release and operator workflow. Promote an exploratory item only with its own threat model, compatibility contract, maintenance plan, and evidence of demand.
 
 ## Exploratory Ideas
 
-| Idea | Value hypothesis | What must be learned before commitment |
+| Idea | Source | Learn before promotion |
 |---|---|---|
-| `FEAT-005` Stash GraphQL/plugin integration | Less direct-schema coupling and better in-app discoverability | User demand, required metadata/API completeness, auth/token handling, plugin distribution/version burden, preservation of read-only semantics |
-| Preview/conflict UI | Easier review for large plans | Whether structured CLI output is insufficient; accessibility and platform cost |
-| Config/missing-tag summary | Faster setup diagnosis | Frequency of missing tags and preferred failure/skip behavior |
-| Configurable performer-count policy | Supports more naming preferences | Actual user demand and collision/readability consequences |
+| Stash API/plugin mode | `FEAT-005` | Demand; API support; authentication/storage; discoverability benefit versus maintenance |
+| Declarative TOML config | `DOC-003` / architecture | Migration cost; rule expressiveness; trust/usability benefit |
+| Authenticated manifests | Defense after `SEC-007` | Cross-trust artifact use; key storage/recovery; benefit over ownership/roots |
+| JSONL machine events | Automation opportunity | Concrete consumer; schema/versioning; private-path redaction |
+| Batched metadata queries | `PERF-001` | Representative profile showing query cost is material |
 
 ## Deferred or Rejected Ideas
 
-- **Generic media renamer:** Rejected for now; weak strategic fit and disproportionate metadata/platform maintenance.
-- **Automatic Stash database writes:** Rejected; conflicts with the core read-only safety invariant.
-- **Hosted/cloud service:** Rejected; no demonstrated value justifies privacy, authentication, infrastructure, and support burden.
-- **Full rewrite:** Rejected; current code is small and incremental extraction addresses the evidence-backed problems.
-- **Unmeasured query optimization:** Deferred until `R2-5` demonstrates a material bottleneck.
-- **Additional bracket/token syntax and 1440p relabeling:** Deferred until user needs are documented.
-- **Mandatory reviewer approval or Discussions/Wiki:** Deferred until contributor/community activity justifies the administration burden.
+- **Stash database writes:** Rejected; violates read-only invariant and adds corruption/synchronization risk.
+- **Hosted/cloud service:** Rejected; exposes sensitive metadata and creates operations/security burden without demand.
+- **Generic media renamer:** Deferred indefinitely; dilutes Stash-specific contract.
+- **GUI now:** Deferred; multiplies platform/accessibility obligations before release fundamentals.
+- **Full rewrite/framework:** Rejected; current modules/tests support incremental work.
+- **Unmeasured optimization:** Rejected; benchmark shows no current bottleneck.
+- **Mandatory Code of Conduct:** Deferred until community activity makes it useful.
 
 ## Documentation Plan
 
-1. After `R0-1`, document plan states, validation failures, apply invariants, and safe first-run workflow (`REL-001`, `FEAT-001`).
-2. With `R0-2`, replace tracked personal examples and document configuration precedence/migration (`SEC-3`, `FEAT-003`).
-3. With `R0-3`/`R1-1`, document exact supported-platform filename behavior and test commands (`BUG-001`, `TEST-002`).
-4. With `R1-2`, document manifest format, retention, interruption, recovery, and privacy (`REL-002`).
-5. With `R2-7`, document the repository-owned lint, format, type, and YAML commands and their supported tool constraints (`DX-002`).
-6. Execute `R2-6`: move the historical audit to `docs/audits/`, update cross-links, label the forum thread, and keep `ANALYSIS.md`/`ROADMAP.md` canonical.
-7. Create `docs/design/rename-plan.md` with the stable plan contract; avoid duplicating README usage instructions.
-8. Create `CHANGELOG.md`, release/testing documentation, and install examples only when `R3-2` begins.
-9. Add screenshots/demo media only if a UI or concise sanitized CLI demonstration materially improves evaluation; never use real library paths/data.
-
-Every documentation mutation above is a separate reviewed Git change. The validation is a current-code comparison, setup walkthrough, link check, and private-path/secret scan; rollback is a normal Git revert. Historical documents should be archived, not silently deleted.
+1. After `R1-5`, update README config precedence and trusted-Python wording (`DOC-003`).
+2. After `R0-4`/`R0-5`, document manifest provenance, recovery states, allowed paths, permissions, concurrency, and refusal in README/SECURITY.
+3. Reconcile CHANGELOG Unreleased, including v2/v3 undo and Windows work (`DOC-004`).
+4. Update RELEASING with safety/Windows/admin gates.
+5. Change GitHub homepage separately (`DOC-002`, `G2`).
+6. Keep ANALYSIS/ROADMAP current; archive via Git history.
+7. Add architecture docs only if contributor complexity grows.
 
 ## GitHub Improvement Plan
 
-| ID | Proposed action | Reason / expected effect | Preconditions and validation | Risk / rollback | Authority |
-|---|---|---|---|---|---|
-| G1 (`DX-001`) | Limit feature-branch CI to PR events; add timeout | Remove duplicate matrices and runaway jobs | Test event behavior on PR and merge | Missed event; revert workflow | Code change approval |
-| G2 (`DOC-002`) | Remove/replace homepage or point to maintained docs; manually inspect social preview | Stop presenting stale thread as authority; improve public presentation | Updated README/destination exists; verify logged-out repo page | Broken link/poor preview; restore prior metadata | Manual GitHub admin + explicit approval |
-| G3 (`GH-001`) | Require stable CodeQL checks on `main` | Completed 2026-08-25: `Analyze (actions)` and `Analyze (python)` gate merges | Verified current GitHub Actions check identities | Merge deadlock; remove checks using admin recovery | Completed with explicit approval |
-| G4 (`GH-002`) | Restrict actions and require full SHAs after pinning | Completed 2026-08-25: GitHub-owned actions only; full SHA pins enforced | Reviewed pinned workflow inventory and policy readback | CI outage; restore prior policy | Completed with explicit approval |
-| G5 (`FEAT-004`) | Publish first tag/release only after safety milestones | Stable, evaluable distribution | Release checklist and clean multi-platform validation | Bad immutable release; deprecate, do not replace | Explicit tag/release approval |
-| G6 (community need) | Add Code of Conduct only if contributor growth warrants it | Complete contributor expectations | Maintainer selects policy and enforcement contact | Policy without operational ownership; revert | Human policy choice |
-| G7 (`DX-002`) | Add configured quality checks to CI after the local baseline passes | Make contributor validation reproducible | Pin/constraint tools, clean local run, and test a deliberate failure | Tool upgrade blocks PRs; revert workflow gate while diagnosing | Workflow change approval; admin approval only if made required |
+### `G2` — Replace the historical homepage URL
 
-Issue/PR templates, contribution/security guidance, Dependabot, secret scanning/push protection, private vulnerability reporting, and current branch protection should be kept. Projects require a manual review with a token that has `read:project`; no change is recommended without that inspection. Wiki and Discussions should remain disabled until demand exists. The original audit was read-only; its approved G3/G4 hardening actions were completed on 2026-08-25.
+Remove it or point it to a maintained page. Owner selects target; verify public header/links; rollback restores prior URL. **Source:** `DOC-002`. **Manual admin action and explicit approval required.**
+
+### `G3` — Re-verify required CodeQL protections
+
+With valid owner auth, record exact branch protection/rulesets, required CI and CodeQL check identities, force-push/deletion restrictions, and code-scanning alert state. Change nothing during readback. **Source:** `GH-001`. **Admin access required.**
+
+### `G4` — Re-verify Actions supply-chain policy
+
+With valid owner auth, record the repository action allowlist, full-SHA enforcement, workflow permissions, and Dependabot state. Change nothing during readback. **Source:** `GH-002`. **Admin access required.**
+
+### `G5` — First release presentation
+
+Create concise release notes, checksums/artifacts, installation examples, and optionally a current social preview after `R3-2`. Do not enable Wiki/Discussions/Projects without an operating need. **Sources:** `FEAT-004`, `DOC-004`. **Publication approval required.**
+
+### `G8` — Evaluate Windows as a required check
+
+After `R2-8` is stable, require its exact job. Platform outages can block merges; observe reliability and document rollback first. **Source:** `TEST-003`. **Manual admin approval required.**
+
+Keep issue/PR templates, contribution guidance, Dependabot, pinned Actions, CI, CodeQL, topics, description, license, and README. Funding is inappropriate absent a decision.
 
 ## Branch Cleanup and Migration Plan
 
 ### Keep
 
-- `main` and `origin/main`: canonical protected default branch and active worktree.
+- `main` and `origin/main`: sole synchronized canonical/default branch at audit start.
 
 ### Safe to Delete After Approval
 
-- None. No secondary local or remote branches exist.
+- None; no extra branch exists.
 
 ### Review Before Deletion
 
@@ -257,55 +206,60 @@ Issue/PR templates, contribution/security guidance, Dependabot, secret scanning/
 
 ### Preserve or Merge Unique Work
 
-- None; baseline divergence was zero.
+- None; no branch with unique commits exists.
 
 ### Rename or Migrate
 
-- None; the default branch is already `main` and no legacy branch references were found.
+- None; default is already `main`, and workflows target it.
 
 ### Manual GitHub Action Required
 
-- None for branches. `G2`–`G4` are repository-setting actions, not branch cleanup.
-
-Any future branch deletion requires refreshed branch/PR/worktree/unique-commit evidence and explicit approval. Recovery for an accidental local deletion is recreation from the known commit; remote deletion recovery depends on the commit remaining reachable.
+- No branch cleanup. Only `G3`/`G4` readback and possible later `G8` required-check change.
 
 ## Milestone Table
 
-| ID | Initiative | Source Findings | Priority | Effort | Dependencies | Target Phase | Success Criteria |
+| ID | Initiative | Source findings | Priority | Effort | Dependencies | Phase | Success criteria |
 |---|---|---|---|---|---|---|---|
-| R0-1 | Authoritative validated plan/apply | `REL-001`, `ARCH-001`, `FEAT-001` | Complete | Medium | Current semantics regression tests | Phase 0 | Dry run and apply consume identical plan; all blocking conflicts detected before mutation |
-| R0-2 | Privacy-safe local configuration | `SEC-3`, `FEAT-003` | Complete | Medium | Configuration precedence decision | Phase 0 | No private defaults tracked; clean setup works; missing config fails clearly |
-| R0-3 | Complete Windows filename rules | `BUG-001`, `TEST-002` | Complete | Medium | Normalization policy | Phase 0 | Platform rule suite passes; normalization collisions block safely |
-| R1-1 | SQLite/filesystem integration fixture | `TEST-002`, `REL-001` | Complete | Medium | Plan interface | Phase 1 | Real queries and multi-file/collision paths pass in CI |
-| R1-2 | Versioned run manifest | `REL-002`, `FEAT-001` | Complete | Medium | R0-1 | Phase 1 | Every run has attributable operation states, recovery checkpoints, and a completion marker |
-| R2-1 | Explicit planner/executor/DB boundaries | `ARCH-001` | Complete | Medium | R0-1, R1-1 | Phase 2 | No global cursor required by tests; behavior unchanged |
-| R2-2 | Complete-source coverage gate | `TEST-001` | Complete | Small | Runner tests | Phase 2 | All production modules measured at ≥80% on 3.12–3.14 |
-| R2-3 | CI de-duplication and required CodeQL | `DX-001`, `GH-001` | Complete | Small | Stable check-name test | Phase 2 | One PR matrix; main merge matrix; CodeQL gates merges |
-| R2-4 | Actions policy hardening | `GH-002` | Complete | Small | Reviewed SHAs/update automation | Phase 2 | All workflows pass under restricted SHA policy |
-| R2-5 | Performance benchmark | `PERF-001` | Complete | Small | Stable fixture/planner | Phase 2 | Repeatable size/query/time/memory baseline and decision threshold |
-| R2-6 | Documentation consolidation | `DOC-002`, `SEC-3` | Complete | Small | Behavior/config changes | Phase 2 | One current tracker; no stale/private setup guidance |
-| R2-7 | Reproducible quality-tool baseline | `DX-002` | Complete | Small | Rule/version policy | Phase 2 | Configured lint, format, type, Actions, and YAML checks pass locally and in CI |
-| R3-1 | Manifest-based safe undo | `FEAT-002`, `REL-002` | Complete | Medium | R0-1, R1-2 | Phase 3 | Apply/undo round trip and conflict refusal verified |
-| R3-2 | First package/release | `FEAT-004` | Preparation complete; publication pending | Medium | Phases 0–1 | Phase 3 | Clean supported-platform install and approved immutable release |
-| R3-3 | Terminal plan review and configuration diagnosis | Selected exploratory ideas | Complete | Small | R0-1, R2-1 | Phase 3 | Read-only preview identifies plan states/blockers and tag configuration outcomes |
-| X-1 | Evaluate Stash API/plugin mode | `FEAT-005` | Exploratory | Medium/High | User/API research | Exploratory/Phase 4 | Evidence supports value and preserves safety invariants before promotion |
+| `R0-4` | Recover every mutation state/constrain cleanup | `REL-002`, `SEC-007` | P0 | High | Crash-state design | 0 | Fault/forgery tests pass; no ambiguous cleanup |
+| `R0-5` | Private link-safe artifacts | `SEC-008`, `SEC-009` | P0 | Medium | Permission policy | 0 | Symlink/umask/concurrency tests pass |
+| `R1-3` | Case/length portability | `BUG-002`, `BUG-003` | P1 | Medium | `R0-4` | 1 | Preview catches length; case apply/interrupt/undo pass |
+| `R1-4` | Whole-scene spot check | `BUG-004` | P1 | Low | Semantic choice | 1 | All first-scene files included only |
+| `R1-5` | Install-safe config | `DOC-003` | P1 | Medium | Format/location decision | 1 | Source/wheel share documented precedence |
+| `R2-8` | Windows filesystem CI | `TEST-003` plus portability | P1 | Medium | `R1-3` | 2 | Stable green Windows job |
+| `R2-9` | Documentation reconciliation | `DOC-002`–`DOC-004`, `SEC-007`–`SEC-009` | P1 | Low | Phases 0–1 | 2 | Source/docs agree |
+| `R2-10` | Comparable benchmarks | `PERF-001` | P3 | Low | Stable method | 2 | Dated comparable measurements |
+| `G2` | Current homepage | `DOC-002` | P2 | Low | Owner target | 2 | Metadata no longer directs to obsolete guidance |
+| `G3` | Required-CodeQL readback | `GH-001` | P1 | Low | Valid admin auth | 2 | Exact protections/alerts recorded read-only |
+| `G4` | Actions-policy readback | `GH-002` | P1 | Low | Valid admin auth | 2 | Exact allowlist/SHA/dependency policy recorded |
+| `G8` | Required Windows check | `TEST-003` | P2 | Low | `R2-8`, `G3` | 2 | Stable exact job required with rollback |
+| `R3-2` | First release | `FEAT-004`, docs/governance | P1 | Medium | 0–2, `G3`, `G4` | 3 | Approved release; fresh installs pass |
+| `R3-4` | Read-only doctor | Missing capability; docs/security | P2 | Medium | `R0-5`, `R1-5` | 3 | Actionable preflight; zero media/DB mutation |
 
 ## Success Metrics
 
-- Every dry-run operation has a validation status; apply rejects changed or conflicting plans before the first rename.
-- Integration tests cover multiple files per scene, missing sources, existing destinations, destination collisions, and interruption states.
-- Windows filename rule tests pass on a Windows job or equivalent verified platform runner.
-- All production modules are included in the coverage report and maintain at least 80% coverage.
-- Repository-owned lint, formatting, type, Actions, and YAML checks are versioned, documented, and green without relying on changing tool defaults.
-- Every live run has a unique versioned manifest and explicit completed/partial/failed status.
-- No user-specific path or private media example is tracked in current distributable configuration/documentation.
-- A pull request produces one Python matrix, required Python/CodeQL checks are reliable, and main remains protected.
-- Actions run under reviewed SHA pins and the approved-action policy.
-- Current documentation matches code/CI; historical audits are clearly dated and non-canonical.
-- A first release is created only after clean install, test, security, and recovery validation.
+- Supported local/CI checks pass; Python 3.12–3.14 and Windows filesystem CI are stable.
+- Coverage stays at least 80%, with tests at every mutation/checkpoint boundary.
+- No active Medium-or-higher validated safety/security issue at release.
+- Forged, cross-root, symlinked, changed, and ambiguous recovery artifacts fail before mutation.
+- Private artifacts are owner-only where supported; unsafe shared paths fail closed.
+- Preview reports case/length truthfully; scene spot checks include every file.
+- Source/installed configuration matches one tested documentation contract.
+- CHANGELOG, README, SECURITY, and RELEASING agree with implementation.
+- Authenticated governance is recorded and required checks match stable jobs.
+- First release installs/shows help on supported Python.
+- No unique branch work is deleted.
 
 ## Recommended Execution Order
 
-1. **R3-2:** Prepare a release candidate; publish, tag, or release only after explicit approval and clean matrix/security checks.
-2. **G2:** Update the GitHub homepage only after a separately approved public destination decision.
-3. **X-1:** Separately validate Stash API/plugin demand and constraints; promote only with evidence.
+1. **`R0-4`:** Specify crash states, fix recovery/path validation, run fault/security regressions. It precedes case-only work that may add mutation phases.
+2. **`R0-5`:** Centralize artifact creation and prove permissions/symlink safety.
+3. **`R1-3`:** Restore length validation and implement crash-safe case-only renames.
+4. **`R1-4`:** Resolve scene semantics and add multi-file integration.
+5. **`R1-5`:** Implement install-safe config precedence; test source/wheel.
+6. **`R2-8`:** Add focused Windows CI and observe stability.
+7. **`R2-9` + `G2`:** Reconcile docs, then update homepage with approval.
+8. **`G3` + `G4`:** Perform authenticated read-only governance verification.
+9. **`G8`:** Require Windows only after stable evidence and approval.
+10. **`R3-2`:** Complete release checklist and request explicit publication authority.
+11. **`R3-4`:** Consider doctor after contracts stabilize.
+12. **`R2-10` / exploratory:** Measure and validate demand before promotion.

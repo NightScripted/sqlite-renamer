@@ -1,534 +1,397 @@
 # Project Analysis
 
-## Current Reconciliation
+## Executive Summary
 
-> **Historical baseline, reconciled 2026-08-25.** The findings below describe the repository at `dd22a7145af151ee78a2aa0e1315df99b1044483` and must not be read as current status. Phase 0–3 work has since resolved `REL-001`, `REL-002`, `TEST-001`, `TEST-002`, `ARCH-001`, `DX-001`, and `DX-002`; added v2/v3 manifest undo and recovery, package preparation, and terminal plan/configuration diagnostics; and established a synthetic baseline for `PERF-001`. CodeQL is now required on `main`, and GitHub Actions are restricted to GitHub-owned full-SHA-pinned actions. GitHub homepage metadata remains a separate administrator decision. See `ROADMAP.md` for the current canonical tracker.
+`sqlite-renamer` is a compact, plan-first Python CLI that reads Stash metadata from SQLite and renames media files without writing to the database. At audited revision `eb307281a13fa75128107d2f5e094b6c943bf558`, it has a strong safety-oriented design, a green local and remote validation baseline, 90.00% measured coverage, no runtime third-party dependencies, and clear separation among discovery, validation, execution, manifests, and undo.
 
-## Historical Snapshot: 2026-08-23 Baseline
+Project health is good, but a first release should wait for two medium-priority recovery/security issues. An interruption between the hard-link and unlink steps leaves two names for the same file while the manifest still says `pending`; resume then blocks rather than recognizing that recoverable intermediate state (`REL-002`). Separately, a locally forged incomplete manifest can direct the special `rollback_failed` cleanup to unlink any matching regular file before the plan's same-directory containment rule is applied (`SEC-007`). Both require unusual local preconditions, so neither is High severity, but they affect the primary recovery boundary.
 
-Everything below preserves the audit's 2026-08-23 evidence and conclusions at `dd22a7145af151ee78a2aa0e1315df99b1044483`; present-tense wording in this snapshot refers only to that revision.
+Low-severity behavior and documentation gaps also matter: case-only renames are blocked on a case-insensitive filesystem (`BUG-002`), overlong destination components fail only during apply (`BUG-003`), `STOP_AFTER_FIRST` stops after a result row rather than a complete multi-file scene (`BUG-004`), and installed configuration discovery differs from the source-checkout setup (`DOC-003`). The recommended direction is incremental: repair and regression-test recovery first, harden private artifact creation, close portability gaps, add continuous Windows coverage, reconcile documentation, and then create the first release. A rewrite, database writes, or hosted product are not justified.
 
-### Executive Summary
-
-`sqlite-renamer` is a small Python command-line utility that reads metadata from a Stash SQLite database and renames media files in place. Its core safety posture is sound: the database is opened read-only, live filesystem mutation is opt-in, SQL values are parameterized, the codebase is compact, and the current 44-test suite passes on Python 3.12–3.14 in GitHub Actions.
-
-Project health is **generally good but not yet release-grade for unattended bulk renaming**. The largest confirmed risk is that dry-run output is not produced by a fully validated rename plan: it does not check whether sources or destinations exist and can propose two operations with the same destination. That weakens the user's main safety gate. Windows filename validation, real-SQLite integration coverage, run isolation in logs, and separation of planning from execution are the next most important improvements.
-
-The project is mature enough for careful personal use with backups and reviewed dry runs, but remains an early utility rather than a packaged product. Documentation, community files, branch protection, dependency automation, CodeQL, secret scanning, and GPL-3.0-or-later licensing are strong. The recommended direction is incremental: first make planning authoritative and collision-safe, then strengthen platform/schema tests and configuration privacy, then package and release only after those safety properties are verified.
-
-### Audit Baseline
+## Audit Baseline
 
 | Field | Value |
 |---|---|
 | Repository | `NightScripted/sqlite-renamer` |
-| Repository root | `/Users/zacharywilliams/Developer/external/NightScripted/sqlite-renamer` |
-| Audit type | Re-audit of the June 16 historical audit; initial audit in the `ANALYSIS.md`/`ROADMAP.md` format |
+| Repository root | `.` |
+| Audit type | Re-audit |
 | Audit scope | Standard |
 | Current branch | `main` |
 | Default branch | `main` |
-| Baseline revision | `dd22a7145af151ee78a2aa0e1315df99b1044483` |
-| Baseline commit | `Merge pull request #11 from NightScripted/fix/tag-precedence` |
-| Audit date | 2026-08-23 (America/Denver) |
-| Working tree at start | Clean; no staged, unstaged, or untracked files |
-| Branch synchronization | `main` and `origin/main` had zero commits of divergence |
-| Prior audit | 2026-06-16, revision `5d8b291`, deep scope; reconciled in place on 2026-08-23 |
-| Comparison range | `5d8b291..dd22a7145af151ee78a2aa0e1315df99b1044483` |
-| Runtime used | macOS; Python 3.14.7; isolated virtual environment under `/private/tmp` |
+| Audited revision | `eb307281a13fa75128107d2f5e094b6c943bf558` |
+| Audit date | 2026-08-27 |
+| Working tree at start | Clean; `main` matched `origin/main` (`0 0` ahead/behind) |
+| Prior audit | Historical baseline at `dd22a7145af151ee78a2aa0e1315df99b1044483`, reconciled 2026-08-25 |
+| Comparison range | `dd22a714..eb30728` |
+| Local environment | macOS, Python 3.14.7, repository `.venv` |
+| Available | Repository shell/Git; public GitHub REST; approved network; pytest/coverage; Ruff; mypy; yamllint; Interrogate; build; pip-audit; Bandit; Semgrep; dedicated read-only security workflow |
+| Unavailable or restricted | Valid authenticated `gh`; GitHub administrative/security settings; local Actionlint; production Stash data; Windows filesystem |
 
-Available capabilities included read/write repository access, shell, Git, authenticated read-only GitHub API access through `gh`, network research, Python/venv/pip, pytest/coverage, GitHub-hosted CodeQL results, and a dedicated local security-scan workflow. Follow-up validation used the ignored repository `.venv` and installed Ruff, mypy, Bandit, Semgrep, `pip-audit`, Actionlint, and yamllint without modifying dependency manifests. A local CodeQL CLI remained unavailable, but GitHub-hosted CodeQL succeeded. Independent security-review workers were unavailable under this session's delegation policy. A Windows runtime, a privacy-safe Stash fixture, a live Stash database, media fixtures, and repository social-preview/settings UI access were also unavailable.
+The only audit mutations authorized are this file and `ROADMAP.md`. No source, test, configuration, branch, tag, release, issue, pull request, or GitHub setting was changed.
 
-### Audit Lineage Summary
+## Audit Lineage Summary
 
-The June audit recorded 15 numbered observations, six security observations, six documentation observations, three CI observations, seven additions, and two longer-term directions. Those entries mixed defects, strengths, resolved work, optional enhancements, and product ideas. This re-audit preserves their identifiers in the history table and assigns new stable IDs only to active, distinct findings.
+The previous document was a preserved historical snapshot whose implementation roadmap was subsequently completed through PRs #14–#21. This re-audit verifies that most former active findings are resolved, but reopens the recovery concern and restores one historical filename-length concern as a regression.
 
-Since the prior revision, the repository added GPL-3.0-or-later licensing, stronger documentation and community files, Dependabot, Python 3.12–3.14 CI, tests, safer parameterized scene selection, and explicit first-match tag precedence. The historical dynamic-SQL concern and the tag-precedence defect are resolved. The most important newly verified issue is the mismatch between a dry-run preview and the checks performed during a live run.
+| Lifecycle | Count | IDs |
+|---|---:|---|
+| New | 8 | `BUG-002`, `BUG-004`, `SEC-007`, `SEC-008`, `SEC-009`, `TEST-003`, `DOC-003`, `DOC-004` |
+| Reopened | 1 | `REL-002` |
+| Regressed | 1 | `BUG-003` (successor to historical N-3) |
+| Improved, still active | 1 | `DOC-002` |
+| Persistent informational | 1 | `PERF-001` |
+| Resolved | 9 | `BUG-001`, `REL-001`, `TEST-001`, `TEST-002`, `ARCH-001`, `SEC-3`, `DX-001`, `DX-002`, `DOC-001` |
+| Unable to re-verify fully | 2 | `GH-001`, `GH-002` administrative controls |
 
-Lifecycle counts for active or historically significant items in this re-audit are:
+## Scope and Coverage
 
-- New: 7 (`REL-001`, `TEST-001`, `TEST-002`, `DOC-001`, `DOC-002`, `DX-001`, `GH-001`)
-- Persistent or superseding persistent historical work: 7 (`BUG-001`, `SEC-3`, `REL-002`, `ARCH-001`, `PERF-001`, `DX-002`, `GH-002`)
-- Resolved or obsolete historical items: 16
-- Regressed or reopened: 0
-- Unable to re-verify: 0 material historical defects; platform behavior is explicitly limited where no Windows runtime was available
-
-### Scope and Coverage
-
-| Surface | Coverage | Notes |
+| Surface | Coverage | Evidence / boundary |
 |---|---|---|
-| First-party Python source | Fully reviewed | All five modules and their call paths were read; targeted dry-run behaviors were reproduced |
-| Tests | Fully reviewed | Both test modules, all 44 tests, mocks, and coverage configuration inspected |
-| Configuration/dependencies | Fully reviewed | Requirements, coverage settings, ignore rules, and lifecycle/install behavior inspected |
-| CI/CD and automation | Fully reviewed | Test workflow and Dependabot configuration inspected; current GitHub runs checked |
-| Security-sensitive boundaries | Fully reviewed | Database opening/querying, filename/path construction, filesystem mutation, logging, configuration, and workflow permissions |
-| Documentation/community files | Fully reviewed | README, historical audit, contribution, security, license, agent guidance, templates |
-| Git history | Substantially reviewed | Recent changes, prior-audit range, merges, and relevant fixes; not every diff line in all history |
-| GitHub metadata/settings | Substantially reviewed | API-visible repository metadata, protection, Actions policy, security features, PRs, issues, releases, alerts |
-| Upstream Stash schema | Substantially reviewed | Current architecture and the `scenes_files` cardinality relevant to this utility |
-| Runtime integration | Deferred | No privacy-safe Stash SQLite/media fixture or Windows host was available |
-| UI/accessibility | Not applicable | The project has no graphical or web UI |
-| Generated/vendored code | None | Virtual environment and caches were outside the repository and excluded |
-| GitHub Projects | Inaccessible | Token lacked `read:project` |
-| Social preview and some UI-only settings | Inaccessible | GitHub API did not expose a reliable inspection path |
+| Ten application modules | Fully reviewed | All source modules, trust boundaries, mutation paths, and CLI actions inspected |
+| Tests and fixtures | Fully reviewed | 64 tests collected; targeted reproductions used only temporary fixtures |
+| Configuration and packaging | Fully reviewed | Config, examples, requirements, package metadata, build/install path |
+| CI and dependency automation | Fully reviewed | Workflow/config source plus latest public run results |
+| Documentation/community files | Substantially reviewed | All tracked Markdown and root community files; historical prose sampled where superseded |
+| Git history | Substantially reviewed | Audit range, recent safety changes, prior finding history, merged PR sequence |
+| Branches/worktrees/tags | Fully reviewed | Local refs, public remote refs, worktrees, tags, PR association |
+| GitHub public experience | Substantially reviewed | Public metadata, branches, issues, PRs, releases, workflows, community profile |
+| GitHub administration | Inaccessible | Invalid auth; required checks, rulesets, security alerts, action policy, social preview not directly readable |
+| Real Stash/media library | Excluded | Privacy and audit scope; synthetic SQLite/filesystem integration used |
+| Windows behavior | Sampled | Static tests; no live Windows filesystem; one Windows-only test skipped |
+| Accessibility/UI | Not applicable / limited | Terminal CLI has no graphical/web UI; terminal readability reviewed statically |
+| Generated/vendored code | None reviewed as first-party | Build outputs and virtual environment excluded |
 
-No production system, external host, discovered credential, private database, or user media was accessed. Repetitive GPL text was verified as GPL version 3 but not line-reviewed as first-party prose.
+## Project Overview
 
-### Project Overview
+- **Purpose/users:** Safely rename files in a Stash library using database metadata, for operators who review plans and retain backups/manifests.
+- **Features:** Tag-ordered and fallback naming; read-only SQLite discovery; immutable digest-protected plans; preview; explicit no-replace apply; v2/v3 hash-checked undo; incomplete-v3 resume; human-readable logging; installable console command.
+- **Stack/platform:** Standard-library Python 3.12–3.14, SQLite, local filesystems, GPL-3.0-or-later. No runtime packages or remote services.
+- **Architecture:** `run_renamer.py` orchestrates. `db.py` owns `mode=ro` access. `planning.py` discovers. `rename_plan.py` models, hashes, validates, persists, and renders. `execution.py` performs same-filesystem no-replace moves. `run_manifest.py` checkpoints/reconciles. `undo.py` derives reverse plans. `renamer.py` preserves rendering compatibility.
+- **Data flow:** Trusted local Python config -> read-only Stash query -> immutable operations -> validated saved plan -> explicit apply -> v3 checkpoints and optional audit log. Undo/resume consume a selected manifest rather than rereading Stash.
+- **Boundaries:** Stash/generated metadata is untrusted input; selected config is trusted executable Python; local plans/manifests are integrity-digested but not authenticated; apply/undo/resume is privileged relative to preview.
+- **Build/test/release:** PEP 517 wheel/sdist; pytest and quality gates; CI on Python 3.12–3.14; no deployment. Version `0.1.0`; no tag, release, or published package.
+- **Maturity:** Well-tested pre-release personal utility. Recovery should be closed before broader unattended use.
 
-The intended user is a Stash operator who wants predictable, template-driven filenames derived from scene metadata. Supported filename variables are date, performer, title, studio, and video height. Configured tag passes run in order; the first matching tag claims a scene, followed by an optional fallback pass.
+## Repository Structure
 
-The technology stack is Python 3.12–3.14, the standard `sqlite3` and filesystem libraries, and `progressbar2`. There is no web service, authentication system, network client, deployment process, package publication, or database write path.
+Ten small root modules are appropriate for this utility. `tests/` holds unit and invented SQLite/filesystem integration coverage. `.github/` contains CI, Dependabot, issue forms, and the PR template. `benchmarks/` provides a privacy-safe synthetic planning benchmark. Root docs cover use, contribution, security, release, changes, audit, and roadmap. Generated plans, manifests, logs, databases, media, private configuration, environments, and builds are ignored.
 
-The main data flow is:
+## Validation Results
 
-1. `run_renamer.py` opens the configured SQLite database through `db.py` and obtains scene IDs for each configured tag.
-2. It builds parameterized filters and calls `renamer.edit_db` in first-match order, followed by a fallback pass.
-3. `renamer.py` joins scenes, files, folders, and video metadata; obtains performer/studio details; renders and sanitizes a filename; checks the database for duplicates; and either records a dry-run entry or renames the file.
-4. Text logs record dry-run proposals, live successes, duplicates, and failures.
-
-The database connection uses SQLite URI `mode=ro`, making the Stash database a read-only metadata source. Filesystem rename is the only privileged operation. Releases and packaging do not yet exist; users run the script from a checkout.
-
-### Repository Structure
-
-- `run_renamer.py` is the command entry point and controls ordered tag/fallback passes.
-- `renamer.py` contains template rendering and the complete query/plan/check/rename loop.
-- `db.py` owns the module-level read-only connection/cursor and metadata queries.
-- `config.py` is a tracked, directly edited configuration file.
-- `logger.py` filters debug output.
-- `tests/` contains unit-style tests built primarily around a shared mock cursor.
-- `.github/workflows/test.yml` supplies the Python version matrix and coverage gate; `.github/dependabot.yml` supplies dependency automation.
-- `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, and `LICENSE` form the current public documentation surface.
-- The June 16 audit is fully reconciled below; `ANALYSIS.md` and `ROADMAP.md` are the current records.
-
-There are no generated sources, migrations owned by this project, package metadata, release tooling, or nested applications.
-
-### Validation Results
-
-| Check | Command or evidence | Result | Notes |
+| Check | Command | Result | Notes |
 |---|---|---|---|
-| Clean baseline | `git status --short --branch` | Passed | Clean `main`, equal to `origin/main` |
-| Git object integrity | `git fsck --full` | Passed | No integrity errors |
-| Manifest/script review | Manual inspection before execution | Passed | No unsafe install lifecycle or deployment scripts |
-| Isolated install | `python3 -m venv <temp>/venv`; `<temp>/venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt` | Passed | Python 3.14.7; lockfile-preserving mode unavailable because the project has no lockfile |
-| Dependency consistency | `<temp>/venv/bin/python -m pip check` | Passed | No broken installed requirements |
-| Syntax | Python `ast.parse` sweep over all seven Python files | Passed | All first-party source and tests parsed |
-| Documented test gate | `python -m pytest tests/ -v --cov=. --cov-report=term-missing --cov-fail-under=80` with caches redirected to temp | Passed | 44 tests; configured coverage 81.19% |
-| Complete first-party coverage reconciliation | `coverage run --source=config,db,logger,renamer,run_renamer -m pytest tests/`; `coverage report` while bypassing `.coveragerc` omission | Failed target | Actual total was 79% (291 statements, 60 missed) because the normal config omits `run_renamer.py`; see `TEST-001` |
-| Targeted dry-run source check | Controlled mock reproduction of `edit_db` | Failed safety expectation | `os.path.isfile` received zero calls while the dry-run operation was recorded; see `REL-001` |
-| Targeted planned collision check | Controlled two-row/same-title/same-extension reproduction | Failed safety expectation | Two proposals produced one unique destination; see `REL-001` |
-| Dedicated security scan | Standard local scan, contract validation, and source-to-sink review | Passed with one Low finding | Artifact contract valid; `SEC-3` confirmed; no validated code-execution, SQL-write/injection, auth, or network vulnerability |
-| GitHub CI | Current `main` workflow runs | Passed | Python 3.12, 3.13, and 3.14 jobs succeeded |
-| GitHub CodeQL | Default setup, Actions and Python | Passed | Current analyses succeeded; no open code-scanning alerts observed |
-| Dependabot/secret alerts | GitHub APIs | Passed | No open Dependabot, code-scanning, or secret-scanning alerts observed |
-| CodeFactor | Latest merged PR #11 status | Passed | External quality check succeeded |
-| Core Python lint | `.venv/bin/ruff check --isolated --select E4,E7,E9,F config.py db.py logger.py renamer.py run_renamer.py tests` | Passed | No core syntax/import/undefined-name errors |
-| Unconfigured broad Python lint | `.venv/bin/ruff check config.py db.py logger.py renamer.py run_renamer.py tests` | Failed baseline | 32 maintenance findings: 30 `.format()` modernization suggestions and two unnecessary `global` declarations; no repository Ruff configuration exists |
-| Python formatting | `.venv/bin/ruff format --isolated --check config.py db.py logger.py renamer.py run_renamer.py tests` | Failed baseline | Four of seven files would be reformatted; no repository formatter policy exists |
-| Type checking | `.venv/bin/mypy config.py db.py logger.py renamer.py run_renamer.py` | Failed baseline | One error: `claimed_scene_ids` needs an explicit set element type in `run_renamer.py:67` |
-| Python security lint | `.venv/bin/bandit -q -r config.py db.py logger.py renamer.py run_renamer.py` | Passed | No Bandit findings |
-| Semgrep | `.venv/bin/semgrep scan --config p/python --config p/security-audit --metrics off --disable-version-check ...` | Passed | 200 rules ran across 21 tracked files; zero findings and zero scan errors |
-| Dependency vulnerability audit | `.venv/bin/pip-audit -r requirements.txt`; repeated for `requirements-dev.txt` | Passed | No known vulnerabilities in either declared dependency set on the audit date |
-| Actions validation | `.venv/bin/actionlint .github/workflows/*.yml` | Passed | Workflow syntax and expressions accepted |
-| YAML lint | `.venv/bin/yamllint .github` | Failed default style; Passed adjusted syntax/style | Default policy reported two long issue-template lines plus document-start/truthy warnings; a GitHub-aware invocation disabling those non-project policies passed |
-| Real SQLite/media integration | No privacy-safe fixture supplied | Skipped | Needed to validate current Stash schema behavior and filesystem application end to end |
-| Windows runtime | No Windows environment available | Skipped | Static filename evidence only for `BUG-001` |
-| Build/package | No package build definition | Not applicable | Project runs directly from source |
-| UI/E2E/accessibility | No UI | Not applicable | CLI/output usability reviewed statically |
+| Environment | `.venv/bin/python --version` | Passed | Python 3.14.7 |
+| Installed consistency | `.venv/bin/python -m pip check` | Passed | No broken requirements |
+| Tests/coverage | `.venv/bin/python -m pytest tests/ -v -p no:cacheprovider --cov=. --cov-report=term-missing --cov-fail-under=80` | Passed | 63 passed, 1 Windows-only skipped, 89 subtests; 90.00% |
+| Lint | `.venv/bin/python -m ruff check .` | Passed | No findings |
+| Format | `.venv/bin/python -m ruff format --check --exclude README.md .` | Passed | 28 files formatted |
+| Types | `.venv/bin/python -m mypy` | Passed | 10 source files |
+| YAML | `.venv/bin/python -m yamllint .github .yamllint.yml` | Passed | No findings |
+| Docstrings | `.venv/bin/python -m interrogate .` | Passed | 100% against 80% gate |
+| Package build | `.venv/bin/python -m build` | Blocked locally, then passed in approved isolated archive | Initial build isolation could not fetch `setuptools>=77` through sandbox DNS; clean sdist/wheel then built from `git archive` |
+| Wheel smoke | fresh venv install `--no-deps`; `sqlite-renamer --help` | Passed | Console entry point works |
+| Dependency audit | `pip-audit` on runtime/dev requirements | Passed | No known vulnerabilities reported on 2026-08-27 |
+| Bandit/Semgrep | Source scans | Reviewed | Both flagged trusted config `exec`; rejected as vulnerability, retained as docs issue |
+| Dedicated security scan | Standard read-only scan with independent validation | Passed contract | 3 validated findings; artifacts in a temporary local scan workspace |
+| Benchmark | `.venv/bin/python benchmarks/benchmark_planning.py --sizes 100,1000` | Passed/baseline | 301/3001 queries; 0.017904/0.235427 s; 75,299/711,044 B peak |
+| Git integrity | `git fsck --full`; `git diff --check` | Passed | No output |
+| Local Actionlint | availability check | Unavailable | Exact remote CI step passed; local Go/binary absent |
+| Public CI | Actions run `33035606444` | Passed | Quality, package, Python 3.12/3.13/3.14 green |
+| CodeQL | Actions run `33035605814` | Passed | Python and Actions analyses green |
+| UI/E2E | N/A | Skipped | No graphical UI or remote service |
 
-The isolated install selected current compatible releases: `progressbar2` 4.6.0, pytest 9.1.1, and pytest-cov 7.1.0. Current releases and licenses were checked against [PyPI progressbar2](https://pypi.org/project/progressbar2/), [PyPI pytest](https://pypi.org/project/pytest/), and [PyPI pytest-cov](https://pypi.org/project/pytest-cov/). This confirms reproducibility on the audit date, not indefinite future reproducibility without a lock or constraints file.
+Production-module coverage ranged from 82% (`undo.py`) to 100% (`logger.py`, `renamer.py`), and every production module was measured. README development commands match CI except local Actionlint could not be reproduced.
 
-Follow-up tool versions in the ignored `.venv` were Ruff 0.16.4, mypy 2.3.1, Bandit 1.9.4, pip-audit 2.10.1, Semgrep 1.174.0, Actionlint 1.7.12, and yamllint 1.38.0. These were audit-environment additions only and were not added to project manifests.
+## Existing Issue Verification
 
-### Existing Issue Verification
-
-| ID/Existing Item | Source | Lifecycle | Current Status | Verification | Still Relevant? | Recommended Action |
+| ID / item | Source | Lifecycle | Current status | Verification | Relevant? | Action |
 |---|---|---|---|---|---|---|
+| `BUG-001` Windows names | Prior audit | Resolved | Already fixed | Reserved names, invalid chars, normalized collisions implemented/tested | No active defect | Preserve tests |
+| `REL-001` authoritative plan | Prior audit | Resolved | Already fixed | Preview/apply share immutable digest-checked plan validation | No | Preserve invariant |
+| `REL-002` resumable state | Prior audit | Reopened | Partially fixed | v3 exists; interruption after `os.link` reproduces unreconciled state | Yes | `R0-4` |
+| `TEST-001` source coverage | Prior audit | Resolved | Already fixed | 90.00% across ten modules | No | Retain gate |
+| `TEST-002` SQLite fixture | Prior audit | Resolved | Already fixed | Invented temporary integration executes supported schema | No | Maintain |
+| `ARCH-001` monolith | Prior audit | Resolved | Already fixed | Dedicated planning/plan/execution/manifest/undo modules | No | No rewrite |
+| `SEC-3` private paths | Prior audit | Resolved | Already fixed | Private config/artifacts ignored; config values not stored | No | Preserve |
+| `DX-001`, `DX-002` CI/tools | Prior audit | Resolved | Already fixed | Consolidated CI and local gates pass | No | Maintain |
+| Historical N-3 length | Earlier audit | Regressed as `BUG-003` | Confirmed | 260-character component validates, then apply fails | Yes | `R1-3` |
+| `DOC-002` homepage | Prior audit | Improved | Partially confirmed | README warns; GitHub homepage still points there | Yes | `G2` |
+| `GH-001`, `GH-002` governance | Prior roadmap | Unable to re-verify fully | Public CodeQL/pins good; authenticated state unavailable | Admin review | Yes | `G3`, `G4` |
+| Package/release | Prior roadmap | Partially complete |  | Build works; no publication/release | Yes | After safety gates |
+| TODO/FIXME/HACK | Repository search | Obsolete/none |  | No meaningful unfinished markers | No | Do not create backlog |
 
-Source entries naming `AUDIT.md` identify the deleted June 16 source document; its relevant findings and dispositions are retained in this table.
+The deleted historical `AUDIT.md` remains recoverable in Git. Its source IDs are reconciled here so none silently becomes current work or disappears:
 
-| N-1 / SEC-1 dynamic scene-ID SQL | `AUDIT.md` | Resolved | Already fixed | Current runner constructs placeholders and passes parameters; regression tests and PR #11 history reviewed | No | Preserve parameterized invariant |
-| N-2 Windows filename edges | `AUDIT.md` | Persistent; superseded by `BUG-001` | Confirmed statically | Sanitizer compared with Microsoft filename rules | Yes | Implement and test a platform-neutral Windows validator |
-| N-3 240-character cap | `AUDIT.md` | Persistent | Documented design limit | Code and README agree | Optional | Keep until a supported-platform need justifies changing it |
-| N-4 N+1 metadata queries | `AUDIT.md` | Persistent; tracked as `PERF-001` | Confirmed code shape, impact unmeasured | Query path inspected | Verification first | Benchmark representative libraries before optimizing |
-| N-5 appended logs | `AUDIT.md` | Persistent; tracked as `REL-002` | Confirmed | Open modes and README reviewed | Yes | Add run-scoped manifest/session identity |
-| N-6 / N-11 monolith/global cursor | `AUDIT.md` | Persistent; tracked as `ARCH-001` | Confirmed | Module boundaries and tests reviewed | Yes | Refactor incrementally after plan semantics are tested |
-| N-7 performer limit | `AUDIT.md` | Persistent behavior | Intentional/documented | README and implementation agree | Optional | Treat as configurable product enhancement, not defect |
-| N-8 empty bracket claim | `AUDIT.md` | Obsolete | Existing audit concluded behavior was correct | Tests and renderer inspected | No | No action |
-| N-9 1440p mapping | `AUDIT.md` | Obsolete as defect | Product-label choice | Current behavior consistent | No current need | Revisit only with user preference evidence |
-| N-10 future token collision | `AUDIT.md` | Speculative | No current affected token | Renderer/callers inspected | No | Do not schedule |
-| N-12 more bracket types | `AUDIT.md` | Optional | Missing feature, not defect | Templates reviewed | No demonstrated need | Keep exploratory only |
-| N-13 duplicated runner flow | `AUDIT.md` | Resolved | Already fixed | Current helpers and history inspected | No | Preserve tests |
-| N-14 missing-tag rollup | `AUDIT.md` | Persistent low-priority UX idea | Partially confirmed | Current messages are per lookup/pass | Optional | Consider summary after plan engine |
-| N-15 `USING_LOG` documentation | `AUDIT.md` | Resolved | Already documented | README run-artifact table reviewed | No | No action |
-| SEC-2 read-only DB | `AUDIT.md` | Persistent strength | Confirmed | `mode=ro` connection path inspected | N/A | Preserve invariant |
-| SEC-3 private local paths | `AUDIT.md` | Persistent | Confirmed | Tracked config and documentation locations reviewed | Yes | See `SEC-3` |
-| SEC-4 path traversal | `AUDIT.md` | False positive/defense in depth | Not validated as vulnerability | Separators are removed and destination stays in source directory | No active vulnerability | Cover containment in future tests |
-| SEC-5 missing license | `AUDIT.md` | Resolved | GPL-3.0-or-later added | `LICENSE` and README inspected | No | Keep |
-| SEC-6 / CI-2 action tags | `AUDIT.md` | Persistent; tracked as `GH-002` | Defense in depth | Workflow and Actions policy inspected | Yes, low urgency | Pin SHAs with controlled updates |
-| DOC-1 provenance uncertainty | `AUDIT.md` | Obsolete | GitHub now identifies canonical non-fork repo | Repository metadata inspected | No | No action |
-| DOC-2 missing license | `AUDIT.md` | Resolved | Already fixed | License present | No | No action |
-| DOC-3 README strengths | `AUDIT.md` | Persistent strength | Confirmed | README verified against code | N/A | Maintain |
-| DOC-4 configuration comments | `AUDIT.md` | Resolved | Current comments are detailed | `config.py` reviewed | No | Update only with configuration redesign |
-| DOC-5 empty backlog | `AUDIT.md` | Resolved | File removed | Repository inventory and history reviewed | No | Use `ROADMAP.md` as canonical tracker |
-| DOC-6 contribution guidance | `AUDIT.md` | Resolved | File exists | `CONTRIBUTING.md` reviewed | No | Update alongside workflows |
-| CI-1 missing timeout | `AUDIT.md` | Persistent optional hardening | Confirmed | Workflow inspected | Low | Add during CI cleanup (`DX-001`) |
-| CI-3 Python 3.10 | `AUDIT.md` | Obsolete | Supported range is now 3.12–3.14 | README and CI agree | No | No action |
-| ADD-1 test/log refactor | `AUDIT.md` | Resolved | Implemented | Tests and history inspected | No | No action |
-| ADD-2 Ruff/mypy | `AUDIT.md` | Persistent; tracked as `DX-002` | Confirmed configuration gap | Tools run from ignored `.venv`; core Ruff rules pass, broad Ruff/format and default mypy do not | Yes, low priority | Define a narrow repository-owned baseline before cleanup |
-| ADD-3 DBHandle | `AUDIT.md` | Persistent; part of `ARCH-001` | Confirmed opportunity | Global state inspected | Yes | Sequence after plan extraction |
-| ADD-4 filename sanitizer | `AUDIT.md` | Persistent; `BUG-001` | Confirmed statically | See finding | Yes | Phase 0 roadmap |
-| ADD-5 batching | `AUDIT.md` | Persistent; `PERF-001` | Unmeasured | See finding | Verification first | Benchmark |
-| ADD-6 environment config | `AUDIT.md` | Persistent; `SEC-3`/`FEAT-003` | Confirmed need | Tracked local values inspected | Yes | Separate example from local state |
-| ADD-7 undo | `AUDIT.md` | Product opportunity; `FEAT-002` | Architecture not ready | Current logs assessed | Later | Build on versioned manifests |
-| DIR-1 Stash plugin | `AUDIT.md` | Exploratory; `FEAT-005` | Not validated with users | Architecture/upstream reviewed | Explore only | Validate demand and API boundary |
-| DIR-2 generic media renamer | `AUDIT.md` | Deferred/rejected | Poor present strategic fit | Project scope assessed | No | Avoid broadening maintenance surface |
+| Historical source items | Current disposition |
+|---|---|
+| N-1 / SEC-1 | Resolved; bound scene-ID parameters remain tested |
+| N-2 / ADD-4 | Resolved as `BUG-001`; Windows normalization implemented |
+| N-3 | Regressed as `BUG-003`; the former length guard is absent |
+| N-4 / ADD-5 | Measured as `PERF-001`; no optimization justified |
+| N-5 | Manifest work improved it, but recovery is reopened as `REL-002` |
+| N-6 / N-11 / ADD-3 | Resolved as `ARCH-001`; DB/planning/execution split |
+| N-7 | Intentional documented performer-limit behavior; accepted product choice |
+| N-8 / N-9 / N-10 / N-12 | Obsolete, optional, or speculative; not scheduled |
+| N-13 / N-14 / N-15 | Resolved: runner helpers, tag diagnostics, and log documentation |
+| SEC-2 | Persistent security strength: database remains read-only |
+| SEC-4 | Historical path-traversal candidate remains false positive; new `SEC-007` is a distinct manifest-cleanup path |
+| SEC-5 / DOC-2 | Resolved by GPL-3.0-or-later licensing |
+| SEC-6 / CI-2 | Implemented as `GH-002`; admin policy needs current readback |
+| DOC-1 / DOC-3 | Canonical repository established; README remains a strength |
+| DOC-4 | Historical comment gap resolved; new installed-config mismatch is `DOC-003` |
+| DOC-5 / DOC-6 | Resolved by canonical roadmap and contribution guide |
+| CI-1 / CI-3 | Timeouts implemented; Python 3.10 concern obsolete under 3.12–3.14 support |
+| ADD-1 / ADD-2 | Test/log refactor and quality baseline completed |
+| ADD-6 / ADD-7 | Private config boundary and manifest undo completed (`FEAT-003`, `FEAT-002`) |
+| DIR-1 | Remains exploratory as `FEAT-005` |
+| DIR-2 | Generic media-renamer direction remains rejected |
 
-### Finding History
+## Finding History
 
-| ID | Prior Status | Current Status | Change | Evidence |
-|---|---|---|---|---|
-| N-1 / SEC-1 | Open concern | Resolved | Scene lists use bound placeholders | Current runner, tests, and PR #11 history |
-| N-2 | Open | Persistent as `BUG-001` | Scope clarified and severity reduced to Low | Current sanitizer plus platform rules |
-| N-5 | Open | Persistent as `REL-002` | No run isolation added | Append-mode log opens |
-| N-6 / N-11 | Open | Persistent as `ARCH-001` | Runner improved, core operation still coupled | `edit_db` and global DB state |
-| SEC-3 | Open | Persistent | Values remain in tracked config and docs | Current repository search |
-| SEC-5 / DOC-2 | Open | Resolved | GPL-3.0-or-later license added | `LICENSE`, README |
-| DOC-5 | Open | Resolved | Empty backlog removed | Current tree/history |
-| CI-2 / SEC-6 | Open | Persistent as `GH-002` | Actions upgraded but remain tag-pinned | Workflow and repository Actions policy |
-| ADD-2 | Deferred | Persistent as `DX-002` | Tools now run; repository-owned policy is still absent | Ruff, formatter, mypy, Actionlint, and yamllint results |
-| First-match precedence | Incorrect reconciliation claim, then fixed | Resolved | Ordered claiming implemented and tested | Baseline merge commit/PR #11 |
+| ID | Prior status | Current status | Change / evidence |
+|---|---|---|---|
+| `BUG-001` | Active | Resolved | Windows sanitizer/collision validation and tests |
+| `REL-001` | Active | Resolved | Shared immutable plan model/validation |
+| `REL-002` | Reported complete | Reopened | Controlled link/unlink interruption blocks resume |
+| `TEST-001`, `TEST-002` | Active | Resolved | 90% coverage and invented SQLite integration |
+| `ARCH-001` | Active | Resolved | Responsibilities extracted |
+| `SEC-3` | Active | Resolved | Private override/artifact policy |
+| `DX-001`, `DX-002` | Active | Resolved | Consolidated green CI/tooling |
+| `DOC-002` | Active | Improved | README fixed; metadata remains |
+| `GH-001`, `GH-002` | Reported complete | Unable to re-verify admin state | Public evidence remains; auth unavailable |
 
-No historical finding was reopened or regressed.
-
-### Active Findings
+## Active Findings
 
 ### Medium
 
-#### REL-001 — Dry-run output is not an authoritative, collision-safe execution plan
+#### `REL-002` — Resume blocks after interruption between link and unlink
 
-- **Category / lifecycle / validation:** Reliability; New; Validated finding
-- **Affected components:** `renamer.py:102-111`, `renamer.py:210-281`
-- **Evidence:** The scene query can produce multiple files for one scene through `scenes_files`. The database duplicate check excludes the current scene. Source existence and destination existence checks occur only inside `if not config.DRY_RUN`. A controlled dry-run made zero `os.path.isfile` calls while recording an operation. A second controlled reproduction supplied two file rows with the same scene/title/extension and received two proposals with one unique destination.
-- **Expected / actual:** A reviewed dry run should identify operations that cannot be applied safely. Instead, it can report missing sources, occupied destinations, and intra-plan destination collisions as valid proposals.
-- **Impact / preconditions:** A user may approve a misleading plan. Live mode often skips an existing destination, so no data loss was demonstrated, but the actual run can be partial or differ materially from the preview. Multi-file scenes make the collision path directly reachable; current Stash documentation models scenes and files separately and current upstream schema uses `scenes_files`.
-- **Verification:** Run `edit_db` in dry-run mode with filesystem calls observed, then with two same-extension file rows that render the same destination.
-- **Remediation:** Build all operations into a typed/versioned plan, validate source existence, destination occupancy, source/destination identity, and duplicate destinations, then make dry-run render and live apply consume the same validated plan. Add real-SQLite and filesystem regression tests.
-- **Confidence / disposition:** High; Scheduled in roadmap (`R0-1`, `R1-1`)
+- **Category/lifecycle/validation:** Reliability; Reopened; controlled temporary-filesystem reproduction.
+- **Affected:** `execution.py:25-33`, `run_manifest.py:210-238,436-479`, `run_renamer.py:69-88`.
+- **Evidence:** Apply creates the destination hard link, removes source, then checkpoints. Injecting `KeyboardInterrupt` at unlink left both paths, manifest `interrupted`, operation `pending`; resume returned no work and `resume_conflicting_paths` because duplicate reconciliation is limited to `rollback_failed`.
+- **Expected/actual:** Resume should recognize a proven intermediate state or have checkpointed it; it instead stops for manual diagnosis.
+- **Impact/preconditions:** No bytes were lost, but recovery is unavailable after interruption/crash in this narrow window. Same-filesystem hard-link support is required.
+- **Remediation:** Model/checkpoint intermediate states or conservatively reconcile matching pending duplicates; fault-test after every mutation/checkpoint. Never delete without hash, identity, and containment proof.
+- **Confidence/disposition:** High; `R0-4`.
 
-#### TEST-001 — Coverage configuration excludes the entry-point module and overstates first-party coverage
+#### `SEC-007` — Forged rollback checkpoint can unlink an arbitrary matching local file
 
-- **Category / lifecycle / validation:** Testing; New; Validated finding
-- **Affected components:** `.coveragerc:1-7`, `run_renamer.py`, CI test command
-- **Evidence:** `.coveragerc` explicitly omits `run_renamer.py`. The documented/CI command passed at 81.19%. Re-running coverage across all five first-party modules produced 79% (291 statements, 60 missed), below the stated 80% gate.
-- **Impact:** The green gate does not measure all production code and can conceal entry-point regressions.
-- **Verification:** Run coverage with `--source=config,db,logger,renamer,run_renamer` while bypassing the omit rule.
-- **Remediation:** Remove the entry-point omission, add tests for runner helpers, fallback, log initialization, and `main`, then restore at least 80% complete first-party coverage.
-- **Confidence / disposition:** High; Scheduled (`R2-2`)
-
-#### TEST-002 — Database behavior is tested only through mocks, without a supported-schema integration fixture
-
-- **Category / lifecycle / validation:** Testing; New; Validated gap
-- **Affected components:** `tests/test_renamer.py:18-23`, database/query paths, CI matrix
-- **Evidence:** DB-dependent tests set a module-level `MagicMock` cursor. No repository fixture executes the joins against SQLite. CI runs Ubuntu only, while Windows filename compatibility is a stated behavior.
-- **Impact:** Schema/cardinality drift and platform-specific path behavior can pass CI. The `REL-001` multi-file case was discoverable only by constructing a targeted row sequence.
-- **Verification:** Repository/test inventory and CI inspection.
-- **Remediation:** Add a minimal privacy-safe SQLite fixture representing supported Stash tables/cardinalities, end-to-end plan tests using temporary files, and a Windows CI job or focused Windows semantics tests.
-- **Confidence / disposition:** High; Scheduled (`R0-3`, `R1-1`)
-
-#### ARCH-001 — Planning, validation, logging, querying, and mutation are coupled in one operation
-
-- **Category / lifecycle / validation:** Architecture; Persistent, superseding N-6/N-11/ADD-3; Validated technical debt
-- **Affected components:** `renamer.edit_db`, module-level state in `db.py`
-- **Evidence:** `edit_db` performs the scene query, metadata enrichment, template rendering, path construction, duplicate queries, dry-run logging, filesystem checks, rename, and failure logging in one loop. Tests replace the global cursor directly.
-- **Impact:** It is difficult to guarantee that preview and apply share semantics, test operations independently, recover from partial work, or evolve schema access safely.
-- **Remediation:** Incrementally extract pure operation discovery/rendering, plan validation, and plan application. Introduce an explicit database handle after regression tests protect behavior; do not rewrite the utility wholesale.
-- **Confidence / disposition:** High; Scheduled (`R0-1`, `R2-1`)
+- **Category/lifecycle/validation:** Security/integrity, CWE-73/CWE-345; New; independently validated source-to-sink review.
+- **Affected:** `run_manifest.py:333-384,409-457,482-517`; CLI resume path.
+- **Evidence:** The digest covers attacker-supplied fields but does not authenticate them. For `rollback_failed`, `_complete_failed_rollback` hashes supplied paths and calls `os.unlink(operation.source)` before `validate_plan` evaluates the remaining plan; it does not first enforce containment, provenance, or same-file identity.
+- **Attack path:** A local attacker controlling the explicitly selected manifest, knowing/reading a target hash, and arranging a matching destination persuades a user to run live resume, which removes the supplied source name.
+- **Severity:** Medium, not High: local artifact control, file/hash access, matching setup, and explicit authorized resume are required; there is no network path or privilege escalation.
+- **Remediation:** Treat manifest fields as untrusted until structural/root/containment validation completes; require same-file identity where possible; establish owner-only provenance.
+- **Confidence/disposition:** High; `R0-4`.
 
 ### Low
 
-#### BUG-001 — Windows filename validation is incomplete
+#### `BUG-002` — Case-only rename is rejected on case-insensitive filesystems
 
-- **Category / lifecycle / validation:** Correctness; Persistent, superseding N-2/ADD-4; Partially validated finding
-- **Affected components:** `renamer.py:167-168`, `renamer.py:193-202`
-- **Evidence:** The sanitizer removes a subset of prohibited punctuation, but not ASCII NUL/control characters, reserved device names such as `CON`/`NUL`/`COM1`, or trailing spaces/periods. These restrictions are documented by [Microsoft's naming rules](https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file).
-- **Impact / prerequisites:** Metadata that renders one of these edge cases can cause rename failure or platform-dependent behavior on Windows. No silent overwrite or data loss was demonstrated.
-- **Verification:** Static comparison only; a Windows runtime was unavailable.
-- **Remediation:** Centralize deterministic filename validation/sanitization, handle reserved basenames even with extensions, define collision behavior after normalization, and add table-driven plus Windows tests.
-- **Confidence / disposition:** High for the rule gap, Medium for runtime effects; Scheduled (`R0-3`)
+`rename_plan.py:142-203` reports `occupied_destination` for `case-test.mp4` -> `CASE-TEST.mp4` on the audited macOS filesystem because both names resolve to the source. Users cannot normalize case. Add a filesystem-aware, crash-safe temporary-name sequence without weakening occupied-target protection. **New; reproduced; High confidence; `R1-3`.**
 
-#### SEC-3 — Tracked configuration and documentation disclose private local path context
+#### `BUG-003` — Overlong destination components pass preview and fail during apply
 
-- **Category / lifecycle / validation:** Security/privacy; Persistent; Validated Low finding
-- **Affected components:** `config.py:5,35`, `README.md:92`, `CLAUDE.md:27`
-- **Evidence:** The public repository contains a user-specific profile/database location and a private media hierarchy. No credential or secret token was found. Values are intentionally not reproduced here.
-- **Impact:** The disclosure exposes local naming and media-context metadata and encourages future users to edit tracked configuration directly, making accidental commits more likely.
-- **Remediation:** Commit only placeholder/example configuration; load ignored local configuration, environment variables, or explicit CLI/config paths. Replace private examples in current docs. Separately decide whether history rewriting is warranted; it is disruptive and requires explicit approval.
-- **Confidence / disposition:** High; Scheduled (`R0-2`)
+A 260-character destination basename produced no issue in `rename_plan.py:62-76,130-203`; `execution.py:25-53` returned `apply_failed` while preserving source. A prior length guard disappeared during refactoring. Validate encoded component length, including multibyte cases, before apply. **Regressed from N-3; reproduced; High confidence; `R1-3`.**
 
-#### REL-002 — Append-only logs do not identify individual runs
+#### `BUG-004` — `STOP_AFTER_FIRST` truncates a multi-file scene
 
-- **Category / lifecycle / validation:** Reliability; Persistent, superseding N-5; Validated finding
-- **Affected components:** `renamer.py:118-121`, README run-artifact guidance
-- **Evidence:** Success, duplicate, and failure files open in append mode on every call, including multiple tag passes. They have no run ID, configuration digest, start/end record, or explicit completion state.
-- **Impact:** A rollback reference can mix operations from multiple executions, making recovery and audit interpretation error-prone.
-- **Remediation:** Use a versioned run manifest with a unique run ID, configuration/plan digest, per-operation result, and completion status. Preserve a human-readable export if useful.
-- **Confidence / disposition:** High; Scheduled (`R1-2`)
+Given two file rows for scene 1 and one for scene 2, `planning.py:29-69` with the option true returned only the first file because it breaks after one row, contrary to the “first scene” wording in `config.py:24-26`. Retain every row for the first distinct scene or rename/document one-operation semantics. **New; reproduced; High confidence; `R1-4`.**
 
-#### DOC-002 — The repository homepage and README lead with a stale community thread
+#### `SEC-008` — Predictable artifact paths can follow pre-existing symlinks
 
-- **Category / lifecycle / validation:** Documentation; New; Validated finding
-- **Affected components:** `README.md:3`, GitHub homepage metadata
-- **Evidence:** The linked [Stash forum thread](https://discourse.stashapp.cc/t/sqlite-renamer-for-stash/1476) is live, but it describes older Python/Windows expectations, obsolete configuration names/line references, and a different historical repository. GitHub uses that thread as the project homepage.
-- **Impact:** New users can follow conflicting setup and safety instructions even though the repository README is current.
-- **Remediation:** Label the link as project history or community discussion rather than a bare authority. Remove or replace the GitHub homepage with a maintained documentation/demo destination through a separately approved administrative change.
-- **Confidence / disposition:** High; Scheduled (`R2-6`, `G2`)
+Plan/report/manifest temporary paths are created or replaced without explicit link-safe creation or ownership checks (`rename_plan.py:101-109`, `run_manifest.py:113-117`, `run_renamer.py:271-300`). In a shared attacker-writable CWD, a local attacker can redirect artifacts. Require a private artifact directory and link-resistant creation. **New; validated static finding; High confidence; `R0-5`.**
 
-#### DX-001 — Pull-request branches run the same Python matrix twice
+#### `SEC-009` — Private artifact confidentiality depends on ambient umask
 
-- **Category / lifecycle / validation:** Developer experience/CI; New; Validated finding
-- **Affected components:** `.github/workflows/test.yml:3-7`
-- **Evidence:** The workflow runs for pushes to every branch and for pull requests to `main`; PR #11 consequently had both push and pull-request matrix executions.
-- **Impact:** Duplicate compute, notifications, and check noise without additional coverage.
-- **Remediation:** Run `push` only for `main` (or use PR checks for feature branches), retain the PR trigger, and add an appropriate job timeout. Verify check-name stability before editing protection rules.
-- **Confidence / disposition:** High; Scheduled (`R2-3`)
+Plans, reports, logs, and manifests contain paths, names, hashes, and config-derived context but use default process permissions. A permissive umask/shared host can expose metadata. Create directories/files as `0700`/`0600` where supported and document Windows/non-POSIX behavior. **New; validated static finding; High confidence; `R0-5`.**
 
-#### DX-002 — Static-analysis and formatting behavior is not defined by the repository
+#### `TEST-003` — Windows-sensitive behavior has no continuous Windows job
 
-- **Category / lifecycle / validation:** Developer experience/maintainability; Persistent, superseding ADD-2; Validated configuration gap
-- **Affected components:** Repository tooling configuration, `run_renamer.py:67`, four currently unformatted Python files
-- **Evidence:** Core isolated Ruff rules (`E4`, `E7`, `E9`, `F`) pass. An unconstrained Ruff run reports 32 modernization/maintenance items, Ruff formatting would change four of seven Python files, and default mypy reports one missing set element annotation. Actionlint passes. Default yamllint reports GitHub-schema/style-policy noise, while a GitHub-aware adjusted invocation passes. No repository Ruff, formatter, mypy, or yamllint policy defines which result is authoritative.
-- **Impact:** Contributors cannot reproduce one stable local quality gate, and future tool defaults can create unrelated cleanup churn. No runtime defect or security vulnerability was demonstrated.
-- **Remediation:** Select a deliberately small Ruff/format/mypy/YAML baseline, record versions or compatible constraints, fix that baseline in a focused mechanical change, document one command, and add CI only after it is clean. Keep modernization rules separate from correctness rules.
-- **Confidence / disposition:** High; Scheduled (`R2-7`)
+`.github/workflows/ci.yml:67-97` uses only Ubuntu, and the audit skipped one Windows-only test. Add a focused `windows-latest` filesystem job and consider requiring it only after stable evidence. **New; confirmed gap; High confidence; `R2-8`.**
 
-#### GH-001 — CodeQL succeeds but is not a required merge check
+#### `DOC-002` — GitHub homepage still promotes historical guidance
 
-- **Category / lifecycle / validation:** GitHub administration; New; Validated configuration gap
-- **Affected components:** GitHub branch protection for `main`
-- **Evidence:** CodeQL default setup analyzes Actions and Python successfully, but protection requires only the three Python matrix checks.
-- **Impact:** A future CodeQL failure would not block merge. This is governance hardening, not evidence of a current vulnerability.
-- **Remediation:** Confirm CodeQL's stable check identity, then add it to required checks using GitHub administration. Test with a non-production PR and retain an admin recovery path.
-- **Confidence / disposition:** High; Scheduled (`R2-3`, `G3`)
+`README.md:3` labels the Discourse page historical, but repository metadata still uses it as homepage. Remove or replace the URL with owner approval. **Improved; publicly verified; High confidence; `G2`.**
+
+#### `DOC-003` — Installed default configuration location conflicts with setup guidance
+
+Without an explicit path/env, `config.py:43-61` looks beside installed `config.py`; README tells users to copy beside a checkout and also recommends `pipx install .`. Define one install-safe precedence/location contract and test source plus wheel. The docstring's “assignment-only” claim is also false because the trusted file is fully executed. **New; confirmed; High confidence; `R1-5`.**
+
+#### `DOC-004` — Changelog understates current undo support and recent work
+
+`CHANGELOG.md:5-16` says undo covers completed v2 apply runs, while source/README support v2/v3; Unreleased also predates latest Windows hardening. Reconcile it before release without inventing a tag/date. **New; confirmed; High confidence; `R2-9`.**
 
 ### Informational
 
-#### PERF-001 — The rename pass has an unmeasured N+1 query shape
+#### `PERF-001` — Healthy benchmark without regression threshold
 
-- **Category / lifecycle / validation:** Performance; Persistent, superseding N-4/ADD-5; Strong static evidence, impact unmeasured
-- **Evidence:** The full scene result is fetched at once; performer/studio metadata and duplicate checks are queried per record. No representative library benchmark was available.
-- **Disposition:** Requires verification. Benchmark query count, wall time, and memory on privacy-safe small/medium/large fixtures. Optimize with joined/batched queries or `fetchmany` only if thresholds justify complexity (`R2-5`).
+The 100/1000-scene synthetic benchmark scaled roughly linearly and showed no actionable bottleneck. Query count is about three statements per scene with metadata expansion. Preserve measurement; add thresholds only after comparable history. **Persistent; informational; `R2-10`.**
 
-#### GH-002 — Actions are tag-pinned while repository policy permits any action
+#### `GH-001` / `GH-002` — Administrative controls need authenticated readback
 
-- **Category / lifecycle / validation:** GitHub/security defense in depth; Persistent, superseding SEC-6/CI-2; Configuration observation
-- **Evidence:** CI uses `actions/checkout@v7` and `actions/setup-python@v7`; repository policy allows all actions and does not require full commit SHAs. GitHub documents both action allowlisting and [full-length SHA enforcement](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository?apiVersion=2022-11-28).
-- **Disposition:** No compromised action or vulnerable workflow was found. Pin reviewed SHAs, automate controlled updates, restrict allowed actions, then enforce SHA pinning (`R2-4`, `G4`).
+Public evidence shows green CodeQL and full-SHA-pinned Actions, and public API says `main` is protected. Invalid auth prevented inspection of required checks, action allowlists, rulesets, secret scanning, alerts, and push restrictions. **Unable to re-verify; `G3`, `G4`; not classified as regression.**
 
-### Resolved Since Prior Audit
+## Resolved Since Prior Audit
 
-| ID | Previous issue | Resolution evidence | Revision/change | Regression coverage |
-|---|---|---|---|---|
-| N-1 / SEC-1 | Dynamic scene ID lists in SQL | Placeholder lists and bound parameters | Present by baseline; reinforced in PR #11 | Yes, runner/query tests |
-| N-13 | Duplicated tag/fallback runner flow | Helper-based flow and explicit claimed-scene tracking | Current `run_renamer.py` | Yes |
-| SEC-5 / DOC-2 | No license | GPL version 3-or-later text and README declaration | Current `LICENSE` | File-level verification |
-| DOC-4 | Weak config comments | Current configuration explains all controls | Current `config.py` | Documentation review |
-| DOC-5 | Empty backlog | Removed from repository | Current tree/history | N/A |
-| DOC-6 | Missing contribution guidance | `CONTRIBUTING.md` present | Current tree | Documentation review |
-| First-match precedence | Overlapping tags could be processed more than once | First-match claiming implemented | Baseline PR #11 / `dd22a71` | Yes, overlapping-tag test |
+| ID | Resolution evidence | Regression coverage |
+|---|---|---|
+| `BUG-001` | Windows-safe sanitizer and collision validation | Platform-neutral tests; live Windows gap is `TEST-003` |
+| `REL-001`, `ARCH-001`, `FEAT-001` | Immutable shared plan and extracted modules | Yes |
+| `TEST-001` | 90.00% complete-source coverage | 80% CI gate |
+| `TEST-002` | Invented temporary SQLite integration | Yes |
+| `SEC-3`, `FEAT-003` | Ignored private config/artifacts; digest-only config record | Yes/guidance |
+| `FEAT-002` | Hash-preconditioned v2/v3 manifest undo | Apply/undo/conflict tests |
+| `DX-001`, `DX-002` | Consolidated CI and pinned tools | Yes |
+| `DOC-001` | README/community/release docs reconciled | Documentation review |
 
-### Security and Privacy Assessment
+## Security and Privacy Assessment
 
 ### Validated Security Findings
 
-`SEC-3` is the only validated security/privacy finding: Low-severity disclosure of local path and media-context metadata in tracked files. No secret value, token, password, or private key was identified.
+`SEC-007` is Medium; `SEC-008` and `SEC-009` are Low. None is remotely exploitable, and no Critical or High issue was validated. The standard dedicated scan, independent validators, and parent source inspection agree on the local artifact/recovery boundary.
 
 ### Partially Validated Findings
 
-`BUG-001` affects safe filename handling on Windows but was not demonstrated on a Windows runtime. It is classified primarily as correctness rather than a security vulnerability.
+None promoted. Hard-link portability, file locking, terminal control rendering, and manifest authentication are defense/reliability questions unless a concrete path is demonstrated.
 
 ### Risks Requiring Verification
 
-- Declared runtime and development requirements had no known vulnerabilities in `pip-audit` on 2026-08-23/24, and GitHub Dependabot had no open alerts. Both are time-sensitive results and should be repeated before release.
-- Real compatibility with the current Stash schema needs a privacy-safe integration fixture. Stash's current [architecture documentation](https://github.com/stashapp/stash/blob/develop/docs/ARCHITECTURE.md) confirms SQLite/WAL and migration-driven persistence, but this audit did not open a real user database.
-- Historical Git privacy cleanup may be unnecessary or disproportionately disruptive because the exposed values are not credentials. The maintainer must decide sensitivity before any rewrite.
+- Authenticated GitHub security settings and alert state (`GH-001`, `GH-002`).
+- Exact Windows filesystem and permission semantics (`TEST-003`).
+- Dependency advisory status after 2026-08-27.
 
 ### Defense-in-Depth Opportunities
 
-- `GH-002`: use reviewed full-SHA action references and a restrictive repository action policy.
-- Add a plan schema and containment invariant: every destination must remain in its source directory unless a future feature explicitly changes that contract.
-- Avoid logging metadata beyond paths required for recovery; document retention and deletion expectations for manifests.
-- Add dependency vulnerability auditing as a periodic CI or release check if the project begins publishing releases.
+- Escape control characters in terminal/report paths.
+- Add an allowed media-root policy before mutation.
+- Consider authenticated manifests only if artifacts cross trust boundaries; SHA-256 alone detects accidental change, not malicious replacement.
+- Add locking if concurrent live invocations become supported.
 
 ### Security Strengths
 
-- SQLite opens with `mode=ro`; there is no database mutation path.
-- Scene IDs and duplicate checks use bound parameters; optional SQL syntax is generated internally from fixed clauses.
-- The utility has no network, authentication, authorization, shell-command, deserialization, update, or server attack surface.
-- Live renaming is opt-in and destination existence is checked before `os.rename`.
-- GitHub has private vulnerability reporting, secret scanning, push protection, Dependabot security updates, least-privilege workflow `contents: read`, and successful default CodeQL setup.
-- Supplementary Bandit and Semgrep scans reported no findings; Semgrep ran 200 Python/security-audit rules over 21 tracked files with no scan errors.
-- `SECURITY.md` clearly scopes reporting and asks reporters not to share real databases/media/private paths.
+The database is read-only; query values are parameterized; runtime has no packages/network; apply uses no-replace hard links; preview is non-mutating; live actions require an explicit command plus `DRY_RUN=False`; undo/resume use hashes; Actions are SHA-pinned with read-only contents permission; private files are ignored. Config `exec` is not a vulnerability under the documented trusted-config model, but “assignment-only” is inaccurate.
 
-### Reliability Assessment
+## Reliability Assessment
 
-The read-only database boundary, default dry-run, destination check, caught `OSError`, and separate error outputs are useful safeguards. The main reliability weakness is semantic drift between preview and application (`REL-001`). The code applies operations one at a time without a prevalidated batch, so interruption can leave a legitimate partial result. Append-only logs do not provide a reliable transaction boundary (`REL-002`).
+Apply rolls back completed operations after ordinary later failures, and v3 manifests replace atomically. Source preservation was confirmed for an overlong-name failure. The main gap is the uncheckpointed link/unlink interval (`REL-002`). Concurrent invocations are uncoordinated, so locking is future hardening rather than a confirmed common defect. There is no network/offline path. SQLite connections are scoped, hash reads stream, and incomplete manifests are retained.
 
-There is no concurrency or background execution; the script is single-process and synchronous. There is no network/offline behavior. Resource handling is mostly straightforward, although the global connection/cursor has no explicit lifecycle boundary and filesystem operations are not resumable. A future plan/manifest should record pending, applied, skipped, and failed states so an interrupted run can be inspected and safely resumed or reversed.
+## Performance Assessment
 
-### Performance Assessment
+- **Measured:** 100 scenes: 301 queries, 0.017904 s, 75,299 B; 1,000: 3,001, 0.235427 s, 711,044 B.
+- **Evidence:** Per-scene performer/studio lookups scale with N; acceptable at measured scale.
+- **Needs profiling:** Large real libraries, external/network volumes, and hashing during start/resume.
+- **Low priority:** Batch metadata queries only after a representative workload shows material cost.
 
-No performance bottleneck was measured. `PERF-001` is a credible query-shape concern: `fetchall` retains the full selection, and metadata/duplicate queries multiply with each file. For a personal library this may be entirely adequate. The correct next step is a synthetic, privacy-safe benchmark that records operation count, query count, peak memory, and elapsed time; optimization is not justified until thresholds or user experience demonstrate a problem.
-
-### Architecture Assessment
+## Architecture Assessment
 
 ### Strengths
 
-- Small, legible module set with a narrow purpose.
-- Clear read-only database / mutable filesystem boundary.
-- Template rendering is already separately testable.
-- Runner ordering and fallback semantics are explicit and regression-tested.
-- Minimal dependency surface.
+Small single-purpose modules, immutable operations, shared validation, read-only persistence, explicit mutation, dependency-free runtime, synthetic integration, and a recovery record separate from the human log suit the risk profile.
 
 ### Weaknesses
 
-- `edit_db` is both planner and executor (`ARCH-001`).
-- Module-level database state makes tests easy to mock but hides lifecycle and dependencies.
-- Tracked configuration combines distributable defaults with user-local state (`SEC-3`).
-- Logs are ad hoc text rather than a versioned execution record (`REL-002`).
+Filesystem mutation and checkpointing are separate state machines joined by an after-the-fact callback. Artifact policy is spread across several writers. Configuration is mutable module-global trusted Python.
 
 ### Technical Debt
 
-The highest-value debt reduction is extraction of a rename-operation model and validator, not generalized layering. A `DBHandle` or repository abstraction should follow, only as far as needed to remove global state and enable SQLite fixtures. Packaging, typing, and broader lint adoption are lower priority.
+Centralize private/link-safe artifact creation; explicitly represent mutation phases; define installed configuration. These are incremental seams, not evidence for a rewrite.
 
 ### Scalability and Future Constraints
 
-Large libraries will magnify query count, `fetchall` memory, and partial-run recovery problems. Direct schema access couples the tool to Stash migrations. A plugin/GraphQL direction could reduce that coupling but would add network/auth/version maintenance and is not yet validated by demand.
+Hashing all sources is intentionally I/O-heavy. Per-scene queries may eventually dominate large remote databases. Hard links require one filesystem, which same-directory moves ensure. API/plugin integration would add authentication, versioning, and synchronization concerns.
 
 ### Recommended Architectural Improvements
 
-1. Introduce an immutable rename operation and versioned plan.
-2. Validate the entire plan before mutation and make preview/apply share it.
-3. Persist per-run results in a resumable manifest.
-4. Pass a database handle explicitly and test through a minimal SQLite fixture.
-5. Profile before altering query strategy.
+1. Explicit recoverable mutation phases (`R0-4`).
+2. One owner-private artifact-store helper (`R0-5`).
+3. A validated configuration value object if path semantics change (`R1-5`).
+4. Keep current modules; avoid a rewrite.
 
-An application rewrite is not warranted.
+## Test and Quality Assessment
 
-### Test and Quality Assessment
+Tests are fast, deterministic, privacy-safe, and span units plus invented SQLite/filesystem integration. They cover digests, no-replace, read-only DB, manifests, undo, resume, and CLI guards. Gaps are interruption injection at every boundary, live Windows, case/length, multi-file limiting, and artifact permission/symlink tests. Coverage quantity is healthy; target risk paths instead of raising the percentage mechanically.
 
-The 44 tests are fast, deterministic, and cover filename rendering, DB helpers, failure logging, first-match precedence, and runner behavior. Assertions are generally focused and current CI aligns with the documented command across three supported Python versions.
+## Accessibility and UX Assessment
 
-Qualitative gaps are more important than the nominal 79–81% distinction: no real SQLite query is executed, no full plan is validated, no multi-file-scene regression exists, no Windows runtime is exercised, and entry-point coverage is omitted. Failure-path coverage should be extended to missing sources, pre-existing destinations in preview, same-target plan collisions, interruption/partial results, reserved names, and manifest replay/undo. Coverage should measure all production modules after those behaviors are added.
+Graphical accessibility is not applicable. CLI strengths are explicit actions, dry-run defaults, conflict summaries, and parser errors. UX gaps are control-character rendering, ambiguous `STOP_AFTER_FIRST`, and installed setup. A future read-only `doctor` command could report config, DB readability, artifact safety, filesystem capability, and mode without media mutation.
 
-The newly available local tools sharpen the maintenance baseline: core Ruff correctness rules, Bandit, Actionlint, Semgrep, and both dependency audits pass. Broader Ruff/format, default mypy, and default yamllint do not all pass because the repository has no owned policy and contains a small amount of style/type debt (`DX-002`). These failures should not be conflated with the validated reliability findings.
+## Documentation Assessment
 
-### Accessibility and UX Assessment
-
-There is no graphical interface, so screen-reader, focus, touch, contrast, and motion review do not apply. CLI usability is documentation- and output-driven. Current strengths include a safe default, progress indication, explicit logs, and clear README warnings. Current weaknesses are that the dry-run label overstates what was checked, output is split across files without a run identity, and missing tag names are reported piecemeal rather than summarized. A future plan command should end with explicit counts for ready, no-op, blocked, conflicting, and missing-source operations and refuse apply when blocking conflicts exist.
-
-### Documentation Assessment
-
-| Document | Status | Problems | Recommended Action |
+| Document | Status | Problems | Action |
 |---|---|---|---|
-| `README.md` | Mostly accurate | Bare stale forum link; preview limitations not disclosed; tracked-config workflow creates privacy risk | Update after planner/config changes; label historical link |
-| `CONTRIBUTING.md` | Accurate, concise | Will need new integration/plan and repository-owned quality commands | Keep; update with implementation work |
-| `SECURITY.md` | Accurate | No material gap for current maturity | Keep |
-| `LICENSE` | Accurate GPL version 3 or later | None found | Keep |
-| `CLAUDE.md` | Mostly accurate | Contains user-local default and will drift with architecture | Replace private default and update after config/planner work |
-| `ANALYSIS.md` | New canonical audit | Must be refreshed, not treated as evergreen | Keep with dated baseline/lineage |
-| `ROADMAP.md` | New canonical tracker | Requires reconciliation as work lands | Keep; mark completed/resolved work rather than reviving it |
-| `CHANGELOG.md` | Missing but premature | No releases exist | Create when the first versioned release is prepared |
-| Architecture/design note | Missing but not yet required | Planner contract will deserve durable explanation | Create a focused plan-format/design note with that implementation |
-| `CODE_OF_CONDUCT.md` | Missing, optional | Community profile is not 100% | Add only if contributor activity warrants it |
+| `README.md` | Strong/minor correction | Installed config fallback; external homepage | Update `DOC-003`; keep authoritative |
+| `CONTRIBUTING.md` | Accurate | None material | Keep |
+| `SECURITY.md` | Accurate | Could state artifact/manifest trust after fixes | Update with release work |
+| `CHANGELOG.md` | Outdated | v2-only undo wording; recent work absent | Update `DOC-004` |
+| `RELEASING.md` | Accurate pre-release | Needs new gates | Update before release |
+| `ANALYSIS.md` | Current re-audit | Prior body historical | Keep current; Git preserves history |
+| `ROADMAP.md` | Current derived tracker | Prior phases completed | Keep lineage |
+| `benchmarks/README.md` | Useful | Dated baseline | Append comparable runs only |
+| `LICENSE` | Accurate | None | Keep |
+| `CODE_OF_CONDUCT.md` | Missing/optional | No formal conduct policy | Create if community activity warrants |
+| Architecture doc | Missing/not urgent | Explanation distributed | Add only if complexity grows |
 
-Recommended final documentation structure:
+Keep docs intentionally small: README for operators; CONTRIBUTING/SECURITY for contributors; RELEASING/CHANGELOG for distribution; ANALYSIS/ROADMAP as current audit/tracker; benchmark docs beside the script.
 
-- Root: `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`, `ANALYSIS.md`, `ROADMAP.md`
-- `docs/design/rename-plan.md`: plan schema, validation invariants, and recovery contract when implemented
-- `CHANGELOG.md`: release-facing changes beginning with the first tagged release
+## GitHub Repository Assessment
 
-### GitHub Repository Assessment
+Public presentation is good: clear description, five topics, README, GPL, templates, Dependabot, protected `main`, and green CI/CodeQL; community profile is 85%. At baseline there were no open issues, PRs, milestones, tags, releases, or packages; all 21 PRs were closed and recent ones merged. Wiki/Discussions are appropriately disabled. Homepage remains stale (`DOC-002`), and no release exists. Exact protection/rulesets, action policy, alerts, Projects, and social preview were inaccessible. Code of Conduct is optional at this scale.
 
-The public repository has a useful name, description, seven relevant topics, a strong README, GPL classification, issue/PR templates, contribution/security guidance, Dependabot, CodeQL, and a protected `main` branch. All 11 pull requests are merged; there are no open issues, PRs, releases, tags, packages, security advisories, or security alerts. This is coherent for a young personal utility, though the lack of releases means users consume moving source rather than a versioned artifact.
+## Branch Assessment
 
-Observed settings and gaps:
+Default migration is unnecessary: `main` is local, remote, workflow, and GitHub default; no legacy branch references were found.
 
-- Default branch is protected `main`; force pushes and deletion are disabled.
-- Required checks are the Python 3.12/3.13/3.14 jobs; CodeQL is successful but not required (`GH-001`).
-- Pull requests and resolved conversations are required, but approvals are set to zero. For a single-maintainer project this is reasonable; raise it only if review ownership expands.
-- Workflow token permissions default to read and the workflow declares `contents: read`.
-- All Actions are allowed and full-SHA pinning is not enforced (`GH-002`).
-- Secret scanning, push protection, Dependabot security updates, and private vulnerability reporting are enabled.
-- Issues and Projects are enabled; Wiki and Discussions are disabled. That is appropriate until community traffic justifies more surfaces.
-- The homepage points at the stale forum thread (`DOC-002`).
-- No release/tag exists. A first release should follow, not precede, the safety and configuration work.
-- GitHub's community profile reported 85%; adding a code of conduct is optional, not a current project-health requirement.
-- Linked Projects could not be inspected because the authenticated token lacked `read:project`. Social preview and UI-only presentation details require manual inspection.
-
-Administrative actions are planned in `ROADMAP.md`; none were performed during this audit.
-
-### Branch Assessment
-
-The repository already uses the preferred default branch name `main`. There is one local branch, one remote branch, and one worktree. No legacy branch name, merged cleanup branch, unique unmerged work, release branch, dependency branch, or worktree-linked secondary branch exists.
-
-| Branch | Last Activity | Merge Status | Associated PR | Unique Commits | Worktree/Active Use | Recommended Action | Reason |
+| Branch | Last activity | Merge status | PR | Unique commits | Worktree/use | Action | Reason |
 |---|---|---|---|---:|---|---|---|
-| `main` / `origin/main` | 2026-08-23, baseline `dd22a71` | Default/current; synchronized at audit start | N/A (contains merged PR #11) | 0 divergence at baseline | Active current worktree | Keep | Canonical protected default branch |
+| `main` / `origin/main` | 2026-08-25 baseline head | Current/default | PR #21 in head lineage | 0/0 divergence | Sole worktree | Keep | Canonical and publicly protected |
 
-There are no branches safe to delete, requiring review, or requiring preservation. No default-branch migration is needed.
+No other local/public remote branches, worktrees, tags, dependency/release branches, or unique work exist. None qualifies for deletion, review, or preservation.
 
-### Product and Feature Opportunities
+## Product and Feature Opportunities
 
 ### Near-Term Improvements
 
-- **FEAT-001 — Authoritative plan/apply workflow:** Highest value, medium complexity. A versioned validated plan makes dry-run trustworthy and creates a foundation for recovery. Depends on `REL-001`, `ARCH-001`, and `TEST-002`; near-term committed roadmap.
-- **FEAT-003 — Local configuration boundary and explicit CLI modes:** High safety/usability value, medium complexity. Add ignored local config or `--config` plus explicit `plan` and `apply` commands. Supports `SEC-3`; near-term committed roadmap.
+- **`FEAT-004` — First release after safety gates:** High value, low/medium complexity; depends on recovery, artifacts, portability, docs, and governance verification.
+- **Read-only doctor/preflight:** Good operator value; report config source, DB readability, artifact safety, filesystem capability, and mode without media mutation.
 
 ### Larger Feature Opportunities
 
-- **FEAT-002 — Manifest-based undo:** High recovery value, medium complexity. Reverse only operations recorded as successfully applied, with precondition checks. Depends on `FEAT-001` and `REL-002`; Phase 3.
-- **FEAT-004 — Versioned packaging/release:** Moderate adoption and reproducibility value, medium complexity. Consider `pyproject.toml`, a console entry point, signed/tagged releases, and `pipx` installation after safety/config contracts stabilize.
+A machine-readable event/report stream could support automation after CLI semantics stabilize. An allowed media-root setting would strengthen security and feedback.
 
 ### Platform or Integration Opportunities
 
-- **FEAT-005 — Supported Stash API/plugin integration:** Potentially reduces direct-schema coupling and improves discoverability. It introduces authentication, network, API-version, and plugin-distribution maintenance. Validate user demand and compare GraphQL/plugin capabilities with the current read-only/offline invariant before commitment.
+A Stash API/plugin mode (`FEAT-005`) could improve discoverability and avoid direct schema coupling, but adds authentication/version/synchronization/support burden. Validate demand first.
 
 ### Experimental Ideas
 
-- A preview UI or Stash plugin surface could show conflicts and permit selection, but should be prototyped only after the plan format is stable.
-- A missing-tag/configuration summary could improve setup feedback with little risk after centralized planning exists.
+Declarative TOML config, authenticated manifests, and batched queries require prototypes and measures; none is committed.
 
 ### Alternative Product Directions
 
-The best alternative direction is to become a Stash-native renaming planner rather than a broader file renamer. This retains domain-specific metadata value while replacing schema coupling with a supported boundary if user demand supports the maintenance cost.
+Remain a conservative local Stash-specific tool. A generic library should emerge only from proven consumers.
 
 ### Ideas Not Recommended
 
-- A generic multi-media renamer: it dilutes the project's clear Stash purpose and multiplies metadata/platform support.
-- Automatic writes to the Stash database: this breaks the strongest current security invariant and is unnecessary for filename-only behavior.
-- A hosted/cloud service: it adds privacy, authentication, storage, and operating burdens with no demonstrated user need.
-- Premature query optimization or a full rewrite: current performance is unmeasured and incremental extraction is sufficient.
+Do not write Stash DB, build cloud hosting, generalize now, add a GUI now, adopt a framework/rewrite, or optimize without measurements.
 
-### Recommended Priorities
+## Recommended Priorities
 
-1. Implement `FEAT-001`: a single validated plan used by both preview and apply (`REL-001`, `ARCH-001`).
-2. Replace tracked personal configuration with a safe local boundary (`SEC-3`, `FEAT-003`).
-3. Complete Windows filename rules and platform tests (`BUG-001`, `TEST-002`).
-4. Add a real SQLite/filesystem fixture with multi-file and collision scenarios (`TEST-002`).
-5. Add run-scoped, resumable manifests (`REL-002`, enabling `FEAT-002`).
-6. Include the runner in coverage and restore the 80% complete-source gate (`TEST-001`).
-7. Define a narrow, reproducible local quality baseline before applying formatting/modernization cleanup (`DX-002`).
-8. Remove duplicated CI executions and require stable CodeQL checks (`DX-001`, `GH-001`).
-9. Apply Actions supply-chain hardening (`GH-002`).
-10. Consolidate current/historical docs and replace the stale homepage (`DOC-001`, `DOC-002`).
-11. Benchmark before taking performance work (`PERF-001`).
+1. Recovery state and manifest path authority (`REL-002`, `SEC-007`; `R0-4`).
+2. Owner-private, link-resistant artifacts (`SEC-008`, `SEC-009`; `R0-5`).
+3. Case/length portability (`BUG-002`, `BUG-003`; `R1-3`).
+4. Multi-file limiting and installed config (`BUG-004`, `DOC-003`; `R1-4`, `R1-5`).
+5. Windows CI and docs (`TEST-003`, `DOC-002`, `DOC-004`; `R2-8`, `R2-9`).
+6. Governance verification and first release (`GH-001`, `GH-002`, `FEAT-004`).
 
-### Limitations
+## Limitations
 
-- No real Stash database or media library was accessed; schema/filesystem integration remains unverified.
-- Windows-specific behavior was inspected statically but not executed on Windows.
-- A standalone local CodeQL CLI remained unavailable; GitHub-hosted CodeQL covered the current branch. Supplementary Python/YAML tools were installed only into the ignored `.venv`, not declared as reproducible project dependencies.
-- The security workflow was sequential because independent delegated reviewers were unavailable; its artifact contract was valid, but no second independent interpretation was obtained.
-- GitHub Projects were inaccessible without `read:project`; social preview and some UI-only administrative presentation settings require manual inspection.
-- No representative large-library performance fixture was available, so performance observations are not measured defects.
-- GitHub and package-registry facts reflect 2026-08-23/24 observations and must be rechecked before implementation.
-- The audit did not change source, tests, configuration, documentation other than these two planning deliverables, branches, tags, GitHub objects, or settings.
+- Standard scope sampled history/prose; this was not a repeated exhaustive security scan.
+- No real/private Stash database, media, production system, external host, or third-party service was touched.
+- macOS cannot reproduce Windows-only semantics; one Windows test was skipped.
+- Invalid authenticated GitHub access prevented inspection of administrative/private state.
+- Public GitHub and vulnerability data are dated 2026-08-27 snapshots.
+- Local Actionlint was unavailable; equivalent remote CI passed.
+- Initial isolated build was blocked by sandbox DNS; approved clean archive build passed.
+- Benchmarks are synthetic, not external-volume/real-library guarantees.
+- No secrets were recorded and no release/publication/destructive action was attempted.
