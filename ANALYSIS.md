@@ -13,7 +13,7 @@ Low-severity behavior and documentation gaps also matter: case-only renames are 
 | Field | Value |
 |---|---|
 | Repository | `NightScripted/sqlite-renamer` |
-| Repository root | `/Users/zacharywilliams/Developer/external/NightScripted/sqlite-renamer` |
+| Repository root | `.` |
 | Audit type | Re-audit |
 | Audit scope | Standard |
 | Current branch | `main` |
@@ -92,7 +92,7 @@ Ten small root modules are appropriate for this utility. `tests/` holds unit and
 | Wheel smoke | fresh venv install `--no-deps`; `sqlite-renamer --help` | Passed | Console entry point works |
 | Dependency audit | `pip-audit` on runtime/dev requirements | Passed | No known vulnerabilities reported on 2026-08-27 |
 | Bandit/Semgrep | Source scans | Reviewed | Both flagged trusted config `exec`; rejected as vulnerability, retained as docs issue |
-| Dedicated security scan | Standard read-only scan with independent validation | Passed contract | 3 validated findings; artifacts in `/private/tmp/codex-security-scans/sqlite-renamer/eb307281_20260827T223300Z/` |
+| Dedicated security scan | Standard read-only scan with independent validation | Passed contract | 3 validated findings; artifacts in a temporary local scan workspace |
 | Benchmark | `.venv/bin/python benchmarks/benchmark_planning.py --sizes 100,1000` | Passed/baseline | 301/3001 queries; 0.017904/0.235427 s; 75,299/711,044 B peak |
 | Git integrity | `git fsck --full`; `git diff --check` | Passed | No output |
 | Local Actionlint | availability check | Unavailable | Exact remote CI step passed; local Go/binary absent |
@@ -116,9 +116,9 @@ Production-module coverage ranged from 82% (`undo.py`) to 100% (`logger.py`, `re
 | `DX-001`, `DX-002` CI/tools | Prior audit | Resolved | Already fixed | Consolidated CI and local gates pass | No | Maintain |
 | Historical N-3 length | Earlier audit | Regressed as `BUG-003` | Confirmed | 260-character component validates, then apply fails | Yes | `R1-3` |
 | `DOC-002` homepage | Prior audit | Improved | Partially confirmed | README warns; GitHub homepage still points there | Yes | `G2` |
-| `GH-001`, `GH-002` governance | Prior roadmap | Unable to re-verify fully | Public CodeQL/pins good; authenticated state unavailable | Admin review | Yes | `G3` |
-| Package/release | Prior roadmap | Partially complete | Build works; no publication/release | Yes | After safety gates |
-| TODO/FIXME/HACK | Repository search | Obsolete/none | No meaningful unfinished markers | No | Do not create backlog |
+| `GH-001`, `GH-002` governance | Prior roadmap | Unable to re-verify fully | Public CodeQL/pins good; authenticated state unavailable | Admin review | Yes | `G3`, `G4` |
+| Package/release | Prior roadmap | Partially complete |  | Build works; no publication/release | Yes | After safety gates |
+| TODO/FIXME/HACK | Repository search | Obsolete/none |  | No meaningful unfinished markers | No | Do not create backlog |
 
 The deleted historical `AUDIT.md` remains recoverable in Git. Its source IDs are reconciled here so none silently becomes current work or disappears:
 
@@ -230,7 +230,7 @@ The 100/1000-scene synthetic benchmark scaled roughly linearly and showed no act
 
 #### `GH-001` / `GH-002` — Administrative controls need authenticated readback
 
-Public evidence shows green CodeQL and full-SHA-pinned Actions, and public API says `main` is protected. Invalid auth prevented inspection of required checks, action allowlists, rulesets, secret scanning, alerts, and push restrictions. **Unable to re-verify; `G3`; not classified as regression.**
+Public evidence shows green CodeQL and full-SHA-pinned Actions, and public API says `main` is protected. Invalid auth prevented inspection of required checks, action allowlists, rulesets, secret scanning, alerts, and push restrictions. **Unable to re-verify; `G3`, `G4`; not classified as regression.**
 
 ## Resolved Since Prior Audit
 
