@@ -253,7 +253,7 @@ Keep issue/PR templates, contribution guidance, Dependabot, pinned Actions, CI, 
 |---|---|---|---|---|---|---|---|
 | `R0-4` | Recover every mutation state/constrain cleanup | `REL-002`, `SEC-007` | P0 | High | Crash-state design | 0 | Fault/forgery tests pass; no ambiguous cleanup |
 | `R0-5` | Private link-safe artifacts | `SEC-008`, `SEC-009` | P0 | Medium | Permission policy | 0 | Symlink/umask/concurrency tests pass |
-| `R0-6` | Bind reviewed artifacts to mutation | Deep scan: unauthenticated artifact authority | P1 | Medium | `R0-5`, review-binding decision | 0 | Digest-valid replacements/imports fail before mutation |
+| `R0-6` | Bind reviewed artifacts to mutation | Deep scan: unauthenticated artifact authority | P1 | Medium | `R0-5`, review-binding decision | 0 | Unapproved digest-valid replacements/imports fail before mutation; approved imports stay explicit and logged |
 | `R0-7` | Preserve media path/object identity | Deep scan: unsafe source symlink resolution | P1 | High | `R0-4`, filesystem contract | 0 | Symlink/race/root-escape tests fail closed before unlink |
 | `R1-3` | Case/length portability | `BUG-002`, `BUG-003` | P1 | Medium | `R0-4` | 1 | Preview catches length; case apply/interrupt/undo pass |
 | `R1-4` | Whole-scene spot check | `BUG-004` | P1 | Low | Semantic choice | 1 | All first-scene files included only |
