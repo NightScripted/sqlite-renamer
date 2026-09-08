@@ -39,7 +39,7 @@ jobs:
       - name: Check GitHub Actions workflow syntax
         run: |
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
-          "$(go env GOPATH)/bin/actionlint" -color .github/workflows/ci.yml
+          "$(go env GOPATH)/bin/actionlint" -color .github/workflows/*.yml
 
   package:
     name: Package
