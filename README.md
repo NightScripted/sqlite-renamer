@@ -142,7 +142,7 @@ python -m pip install -r requirements.txt -r requirements-dev.txt
 python -m pytest tests/ -v --cov=. --cov-report=term-missing --cov-fail-under=80
 ```
 
-GitHub Actions runs this check on Python 3.12, 3.13, and 3.14. Dependabot checks Python packages weekly and GitHub Actions monthly.
+GitHub Actions runs this check on Python 3.12, 3.13, and 3.14. GitHub's default CodeQL setup also analyzes the Python code and GitHub Actions workflows. Dependabot checks Python packages weekly and GitHub Actions monthly.
 
 The repository also has a deliberately small, reproducible quality baseline:
 
